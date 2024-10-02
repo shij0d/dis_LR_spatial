@@ -3,7 +3,7 @@ import sys
 
 
 # Add the path where your Python packages are located
-sys.path.append('/home/shij0d/documents/dis_spatial/dis_LR_spatial')
+sys.path.append('/home/shij0d/documents/dis_LR_spatial')
 
 import unittest
 import torch

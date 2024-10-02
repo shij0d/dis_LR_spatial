@@ -133,7 +133,7 @@ for J in Js:
         print(f"r:{r}")
         result=estimate_l(r)
         results.append(result)
-    with open(f'/home/shij0d/Documents/Dis_Spatial/expriements/decentralized/varying_parameter/J_{J}.pkl', 'wb') as f:
+    with open(f'/home/shij0d/Documents/Dis_Spatial/expriements/decentralized/varying_machine_number/J_{J}.pkl', 'wb') as f:
         pickle.dump(results, f)
     # with multiprocessing.Pool(processes=num_cores//2-1) as pool:
     #     results = pool.map(estimate_l,rs)

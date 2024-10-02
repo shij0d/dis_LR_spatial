@@ -136,7 +136,7 @@ for r in rs:
     print(f"r:{r}")
     result=estimate(r)
     results.append(result)
-with open(f'/home/shij0d/Documents/Dis_Spatial/expriements/decentralized/varying_parameter/N_{N}.pkl', 'wb') as f:
+with open(f'/home/shij0d/Documents/Dis_Spatial/expriements/decentralized/Unequal_sample_size/res.pkl', 'wb') as f:
     pickle.dump(results, f)
     # with multiprocessing.Pool(processes=num_cores//2-1) as pool:
     #     results = pool.map(estimate_l,rs)
