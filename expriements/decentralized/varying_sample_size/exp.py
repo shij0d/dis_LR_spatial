@@ -123,7 +123,7 @@ def estimate(r,N):
     return de_estimators,optimal_estimator
 
 num_cores = multiprocessing.cpu_count()
-Ns=[10000,20000,40000]
+Ns=[20000,40000]
 #nu_lengths=[(1.5,0.148)]
 rs=[r for r in range(100)]
 for N in Ns:

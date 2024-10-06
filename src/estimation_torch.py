@@ -641,7 +641,7 @@ class GPPEstimation:
         result=minimize(fun=nllikf,
                      x0=x0,
                      method="BFGS",
-                     jac=nllikgf,tol=1e-8)
+                     jac=nllikgf,tol=1e-10)
         minimizer_lik=torch.tensor(result.x,dtype=torch.float64)
         mu,Sigma=self.get_pos(minimizer_lik)
         beta, delta, theta=self.vector2arguments_lik(minimizer_lik)
@@ -1354,7 +1354,7 @@ class GPPEstimation:
                 grad_theta_Mstack=y_theta_Mstack*self.J+com_grad_theta_Mstack
                 
                 #print(torch.norm(torch.mean(grad_theta_Mstack,dim=1)))
-                if s>=2 and torch.norm(torch.mean(grad_theta_Mstack,dim=1))<1e-4:
+                if s>=6 and torch.norm(torch.mean(grad_theta_Mstack,dim=1))<1e-4:
                     break
                 hessian_theta_Mstack=y_hessian_theta_Mstack*self.J+com_hessian_theta_Mstack
                
@@ -1387,12 +1387,9 @@ class GPPEstimation:
                         invh_m_grad_Mstack[:,j:(j+1)]=0.1*torch.linalg.inv(modified_hess)@grad
                 
                 #set the step size via backtracking line search
-                if s>=2 and torch.norm(torch.mean(invh_m_grad_Mstack,dim=1))<1e-5:
+                if s>=6 and torch.norm(torch.mean(invh_m_grad_Mstack,dim=1))<1e-5:
                     break
-                if s<=10:
-                    step_size=1
-                else:
-                    step_size=1
+    
                 step_size=1
                 shrink_rate=0.5
                 #m=0.1
@@ -1444,7 +1441,7 @@ class GPPEstimation:
                 # print(torch.norm(torch.mean(grad_theta_Mstack,dim=1)))
                 # if torch.norm(torch.mean(grad_theta_Mstack,dim=1))<1e-4:
                 #     break
-                if s>=2 and torch.norm(torch.mean(grad_theta_Mstack,dim=1)-torch.mean(grad_theta_Mstack_p,dim=1))<1e-4:
+                if s>=6 and torch.norm(torch.mean(grad_theta_Mstack,dim=1)-torch.mean(grad_theta_Mstack_p,dim=1))<1e-4:
                     break
                 grad_theta_Mstack_p=grad_theta_Mstack
             theta_lists.append(theta_list)

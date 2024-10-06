@@ -122,7 +122,7 @@ def estimate(r,con_pro):
     return de_estimators,optimal_estimator
 
 num_cores = multiprocessing.cpu_count()
-con_probs=[0.3,0.5,0.8]
+con_probs=[0.3,0.8]
 #nu_lengths=[(1.5,0.148)]
 rs=[r for r in range(100)]
 for con_prob in con_probs:
