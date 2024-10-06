@@ -3,7 +3,7 @@ import sys
 
 
 # Add the path where your Python packages are located
-sys.path.append('/home/shij0d/Documents/Dis_Spatial')
+sys.path.append('/home/shij0d/Documents/dis_LR_spatial')
 
 import unittest
 import torch
@@ -22,6 +22,7 @@ import pickle
 from functools import partial
 import multiprocessing
 import matplotlib.pyplot as plt
+from joblib import Parallel, delayed
 
 #%%
 
@@ -113,7 +114,7 @@ def estimate(r,N):
 
     T=100
     try:
-        de_estimators=gpp_estimation.de_optimize_stage2(mu_list,Sigma_list,beta_list,delta_list,theta_list,T=T)
+        de_estimators=gpp_estimation.de_optimize_stage2(mu_list,Sigma_list,beta_list,delta_list,theta_list,T=T,weights_round=6)
         print("dis optimization succeed")
     except Exception:
         print("dis optimization failed")
@@ -122,70 +123,27 @@ def estimate(r,N):
     return de_estimators,optimal_estimator
 
 num_cores = multiprocessing.cpu_count()
-Ns=[20000,40000]
+Ns=[10000,20000,40000]
 #nu_lengths=[(1.5,0.148)]
 rs=[r for r in range(100)]
 for N in Ns:
     print(f"N:{N}")
     estimate_l=partial(estimate,N=N)
-    results=[]
-    for r in rs:
-        print(f"r:{r}")
-        result=estimate_l(r)
-        results.append(result)
-    with open(f'/home/shij0d/Documents/Dis_Spatial/expriements/decentralized/varying_rank/N_{N}.pkl', 'wb') as f:
+    # results=[]
+    # for r in rs:
+    #     print(f"r:{r}")
+    #     result=estimate_l(r)
+    #     results.append(result)
+    # with open(f'/home/shij0d/Documents/Dis_Spatial/expriements/decentralized/varying_sample_size/N_{N}.pkl', 'wb') as f:
+    #     pickle.dump(results, f)
+    results = [None] * len(rs)
+    # Parallel execution for the list of rs, while maintaining the index (i)
+    results = Parallel(n_jobs=-1)(
+        delayed(lambda i, r: (i, estimate_l(r)))(i, r) for i, r in enumerate(rs)
+    )
+    # Assign results based on the index to maintain order
+    for i, result in results:
+        results[i] = result
+    with open(f'/home/shij0d/Documents/dis_LR_spatial/expriements/decentralized/varying_sample_size/N_{N}.pkl', 'wb') as f:
         pickle.dump(results, f)
-    # with multiprocessing.Pool(processes=num_cores//2-1) as pool:
-    #     results = pool.map(estimate_l,rs)
-    #     with open(f'/home/shij0d/Documents/Dis_Spatial/expriements/decentralized/varying_parameter/nu_{nu}_length_scale_{length_scale}.pkl', 'wb') as f:
-    #         pickle.dump(results, f)
 
-#%% illustrate the result
-# length_scales=[0.3,0.1,0.03]
-# beta=torch.tensor([-1,2,3,-2,1],dtype=torch.float64)
-# delta=torch.tensor(0.25,dtype=torch.float64)
-# alpha=1
-# for length_scale in length_scales:
-#     theta=torch.tensor([alpha,length_scale],dtype=torch.float64)
-#     with open(f'/home/shij0d/Documents/Dis_Spatial/expriements/centralized/exp1_parameter_length_scale_{length_scale}.pkl', 'rb') as f:
-#         results=pickle.load(f)
-#     param_rel_error=np.zeros(shape=(100,50))
-#     for r in range(100):
-#         for t in range(50):
-#             rel_dif_beta=torch.abs(results[r][0][2][t]-results[r][1][2]).squeeze()/torch.abs(beta)
-#             rel_dif_delta=torch.abs(results[r][0][3][t]-results[r][1][3]).squeeze()/torch.abs(delta)
-#             rel_dif_theta=torch.abs(results[r][0][4][t]-results[r][1][4]).squeeze()/torch.abs(theta)
-#             param_rel_error[r,t]=torch.sqrt(torch.square(torch.norm(rel_dif_beta))+torch.square(torch.norm(rel_dif_delta))+torch.square(torch.norm(rel_dif_theta))).numpy()
-#     # Calculate the mean, standard deviation, max, and min across replications for each iteration
-#     param_rel_error=np.log10(param_rel_error)
-#     mean_rel_error= np.mean(param_rel_error, axis=0)
-#     std_rel_error = np.std(param_rel_error, axis=0)
-#     percentile_10_error = np.percentile(param_rel_error, 10, axis=0)
-#     percentile_90_error = np.percentile(param_rel_error, 90, axis=0)
-#     max_rel_error = np.max(param_rel_error, axis=0)
-#     min_rel_error = np.min(param_rel_error, axis=0)
-    
-
-#     # Plot the mean convergence curve
-#     plt.figure(figsize=(10, 6))
-#     plt.plot(mean_rel_error, label='Mean Relative Error', color='blue')
-
-#     # Plot the max and min convergence curves
-#     plt.plot(max_rel_error, label='Max Relative Error', color='red', linestyle='--')
-#     plt.plot(min_rel_error, label='Min Relative Error', color='green', linestyle='--')
-
-#     # Fill between the 25th and 75th percentiles
-#     plt.fill_between(range(50), percentile_10_error, percentile_90_error, color='blue', alpha=0.3, label='10th-90th Percentile Error')
-
-#     # Customize the plot
-#     plt.title(f'Length Scale:{length_scale}')
-#     plt.xlabel('Iteration')
-#     plt.ylabel('Logarithmic Error')
-#     plt.legend()
-#     plt.grid(True)
-#     plt.savefig(f'exp1_length_scale:{length_scale}.pdf', dpi=300)  
-#     # Show the plot
-#     plt.show()
-
-
-# %%

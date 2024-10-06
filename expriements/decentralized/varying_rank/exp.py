@@ -3,7 +3,7 @@ import sys
 
 
 # Add the path where your Python packages are located
-sys.path.append('/home/shij0d/Documents/Dis_Spatial')
+sys.path.append('/home/shij0d/Documents/dis_LR_spatial')
 
 import unittest
 import torch
@@ -22,6 +22,7 @@ import pickle
 from functools import partial
 import multiprocessing
 import matplotlib.pyplot as plt
+from joblib import Parallel, delayed
 
 #%%
 
@@ -32,7 +33,7 @@ def estimate(r,m):
     length_scale=0.1
     nu=0.5
     N=10000
-    mis_dis=0.001
+    mis_dis=0.01
     l=math.sqrt(2*N)*mis_dis
     extent=-l/2,l/2,-l/2,l/2,
     coefficients=(-1,2,3,-2,1)
@@ -113,7 +114,7 @@ def estimate(r,m):
 
     T=100
     try:
-        de_estimators=gpp_estimation.de_optimize_stage2(mu_list,Sigma_list,beta_list,delta_list,theta_list,T=T)
+        de_estimators=gpp_estimation.de_optimize_stage2(mu_list,Sigma_list,beta_list,delta_list,theta_list,T=T,weights_round=6)
         print("dis optimization succeed")
     except Exception:
         print("dis optimization failed")
@@ -122,23 +123,29 @@ def estimate(r,m):
     return de_estimators,optimal_estimator
 
 num_cores = multiprocessing.cpu_count()
-ms=[200,300]
+ms=[100,200,300]
 #nu_lengths=[(1.5,0.148)]
 rs=[r for r in range(100)]
 for m in ms:
     print(f"m:{m}")
     estimate_l=partial(estimate,m=m)
-    results=[]
-    for r in rs:
-        print(f"r:{r}")
-        result=estimate_l(r)
-        results.append(result)
-    with open(f'/home/shij0d/Documents/Dis_Spatial/expriements/decentralized/varying_rank/m_{m}.pkl', 'wb') as f:
+    # results=[]
+    # for r in rs:
+    #     print(f"r:{r}")
+    #     result=estimate_l(r)
+    #     results.append(result)
+    # with open(f'/home/shij0d/Documents/Dis_Spatial/expriements/decentralized/varying_rank/m_{m}.pkl', 'wb') as f:
+    #     pickle.dump(results, f)
+    results = [None] * len(rs)
+    # Parallel execution for the list of rs, while maintaining the index (i)
+    results = Parallel(n_jobs=-1)(
+        delayed(lambda i, r: (i, estimate_l(r)))(i, r) for i, r in enumerate(rs)
+    )
+    # Assign results based on the index to maintain order
+    for i, result in results:
+        results[i] = result
+    with open(f'/home/shij0d/Documents/dis_LR_spatial/expriements/decentralized/varying_rank/m_{m}.pkl', 'wb') as f:
         pickle.dump(results, f)
-    # with multiprocessing.Pool(processes=num_cores//2-1) as pool:
-    #     results = pool.map(estimate_l,rs)
-    #     with open(f'/home/shij0d/Documents/Dis_Spatial/expriements/decentralized/varying_parameter/nu_{nu}_length_scale_{length_scale}.pkl', 'wb') as f:
-    #         pickle.dump(results, f)
 
 #%% illustrate the result
 # length_scales=[0.3,0.1,0.03]
