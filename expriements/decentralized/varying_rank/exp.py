@@ -34,7 +34,7 @@ def estimate(r,m):
     nu=0.5
     N=10000
     mis_dis=0.01
-    l=math.sqrt(2*N)*mis_dis
+    l=math.sqrt(2*N)*1.5*mis_dis
     extent=-l/2,l/2,-l/2,l/2,
     coefficients=(-1,2,3,-2,1)
     noise_level=2
