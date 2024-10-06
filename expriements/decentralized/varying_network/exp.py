@@ -3,7 +3,7 @@ import sys
 
 
 # Add the path where your Python packages are located
-sys.path.append('/home/shij0d/Documents/Dis_Spatial')
+sys.path.append('/home/shij0d/documents/dis_LR_spatial')
 
 import unittest
 import torch
@@ -32,7 +32,7 @@ def estimate(r,con_pro):
     length_scale=0.1
     nu=0.5
     N=10000
-    mis_dis=0.001
+    mis_dis=0.01
     l=math.sqrt(2*N)*mis_dis
     extent=-l/2,l/2,-l/2,l/2,
     coefficients=(-1,2,3,-2,1)
@@ -122,7 +122,7 @@ def estimate(r,con_pro):
     return de_estimators,optimal_estimator
 
 num_cores = multiprocessing.cpu_count()
-con_probs=[0.3,0.8]
+con_probs=[0.3,0.5,0.8]
 #nu_lengths=[(1.5,0.148)]
 rs=[r for r in range(100)]
 for con_prob in con_probs:
@@ -133,7 +133,7 @@ for con_prob in con_probs:
         print(f"r:{r}")
         result=estimate_l(r)
         results.append(result)
-    with open(f'/home/shij0d/Documents/Dis_Spatial/expriements/decentralized/varying_parameter/con_prob_{con_prob}.pkl', 'wb') as f:
+    with open(f'/home/shij0d/Documents/Dis_Spatial/expriements/decentralized/varying_network/con_prob_{con_prob}.pkl', 'wb') as f:
         pickle.dump(results, f)
     # with multiprocessing.Pool(processes=num_cores//2-1) as pool:
     #     results = pool.map(estimate_l,rs)
