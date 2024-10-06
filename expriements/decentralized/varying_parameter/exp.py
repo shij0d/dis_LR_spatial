@@ -22,6 +22,7 @@ import pickle
 from functools import partial
 import multiprocessing
 import matplotlib.pyplot as plt
+from joblib import Parallel, delayed
 
 #%%
 
@@ -33,7 +34,7 @@ def estimate(r,length_scale,nu):
     #nu=0.5
     N=10000
     mis_dis=0.01
-    l=math.sqrt(2*N)*mis_dis
+    l=math.sqrt(2*N)*mis_dis*1.5
     extent=-l/2,l/2,-l/2,l/2,
     coefficients=(-1,2,3,-2,1)
     noise_level=2
@@ -44,6 +45,7 @@ def estimate(r,length_scale,nu):
     np.fill_diagonal(adj_matrix, 1)
     weights,_=optimal_weight_matrix(adj_matrix=adj_matrix)
     weights=torch.tensor(weights,dtype=torch.double)
+    
     #weights = torch.ones((J,J),dtype=torch.float64)/J
 
     kernel=alpha*Matern(length_scale=length_scale,nu=nu)
@@ -122,7 +124,7 @@ def estimate(r,length_scale,nu):
     T=100
    
     try:
-        de_estimators=gpp_estimation.de_optimize_stage2(mu_list,Sigma_list,beta_list,delta_list,theta_list,T=T)
+        de_estimators=gpp_estimation.de_optimize_stage2(mu_list,Sigma_list,beta_list,delta_list,theta_list,T=T,weights_round=6)
         print("dis optimization succeed")
     except Exception:
         print("dis optimization failed")
@@ -130,23 +132,41 @@ def estimate(r,length_scale,nu):
   
     return de_estimators,optimal_estimator
 
+estimate(1,0.033,0.5)
 num_cores = multiprocessing.cpu_count()
-nu_lengths=[(0.5,0.033),(0.5,0.1),(0.5,0.234),(1.5,0.021),(1.5,0.063),(1.5,0.148)]
-#nu_lengths=[(1.5,0.021)]
+nu_lengths=[(0.5,0.033),(0.5,0.1),(0.5,0.234),(1.5,0.021*math.sqrt(3)),(1.5,0.063*math.sqrt(3)),(1.5,0.148*math.sqrt(3))]
+nu_lengths=[nu_lengths[1]]
 rs=[r for r in range(100)]
 #rs=[1]
 for nu_length in nu_lengths:
     nu=nu_length[0]
+    
     length_scale=nu_length[1]
-    print(f"nu:{nu},length_scale:{length_scale}")
+    if nu==1.5:
+        length_scale_act=length_scale/math.sqrt(3)
+    else:
+        length_scale_act=length_scale
+    print(f"nu:{nu},length_scale:{length_scale_act}")
     estimate_l=partial(estimate,length_scale=length_scale,nu=nu)
-    results=[]
-    for r in rs:
-        print(f"r:{r}")
-        result=estimate_l(r)
-        results.append(result)
-    with open(f'/home/shij0d/Documents/Dis_Spatial/expriements/decentralized/varying_parameter/mindis_0.01/nu_{nu}_length_scale_{length_scale}.pkl', 'wb') as f:
+    # results=[]
+    # for r in rs:
+    #     print(f"r:{r}")
+    #     result=estimate_l(r)
+    #     results.append(result)
+    # with open(f'/home/shij0d/Documents/Dis_Spatial/expriements/decentralized/varying_parameter/mindis_0.01/nu_{nu}_length_scale_{length_scale_act}.pkl', 'wb') as f:
+    #     pickle.dump(results, f)
+    
+    results = [None] * len(rs)
+    # Parallel execution for the list of rs, while maintaining the index (i)
+    results = Parallel(n_jobs=-1)(
+        delayed(lambda i, r: (i, estimate_l(r)))(i, r) for i, r in enumerate(rs)
+    )
+    # Assign results based on the index to maintain order
+    for i, result in results:
+        results[i] = result
+    with open(f'/home/shij0d/Documents/Dis_Spatial/expriements/decentralized/varying_parameter/mindis_0.01_irregular/nu_{nu}_length_scale_{length_scale_act}_weights_round_{6}.pkl', 'wb') as f:
         pickle.dump(results, f)
+
     # with multiprocessing.Pool(processes=num_cores//2-1) as pool:
     #     results = pool.map(estimate_l,rs)
     #     with open(f'/home/shij0d/Documents/Dis_Spatial/expriements/decentralized/varying_parameter/nu_{nu}_length_scale_{length_scale}.pkl', 'wb') as f:

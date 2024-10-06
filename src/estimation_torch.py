@@ -909,10 +909,10 @@ class GPPEstimation:
 
         return params_Mstack_list
     
-    def de_optimize_stage2(self,mu_list:list[torch.Tensor],Sigma_list:list[torch.Tensor],beta_list:list[torch.Tensor],delta_list:list[torch.Tensor],theta_list:list[torch.Tensor],T:int,seed=2024):
+    def de_optimize_stage2(self,mu_list:list[torch.Tensor],Sigma_list:list[torch.Tensor],beta_list:list[torch.Tensor],delta_list:list[torch.Tensor],theta_list:list[torch.Tensor],T:int,weights_round=4,seed=2024):
         torch.manual_seed(seed)
         #self.weights=torch.ones((self.J,self.J),dtype=torch.double)/self.J
-        self.weights=torch.matrix_power(self.weights, 4)
+        self.weights=torch.matrix_power(self.weights, weights_round)
         #define some functions
         def K_f(theta):
             return self.kernel(self.knots, self.knots, theta)

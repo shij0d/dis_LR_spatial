@@ -192,7 +192,7 @@ def onedif_kernel(X:torch.Tensor|np.ndarray, Y:torch.Tensor|np.ndarray|None, the
                Y = torch.tensor(Y, dtype=torch.float64)
             dist= torch.cdist(X, Y, p=2)# Calculate the squared Euclidean distance
          
-        dist_scaled=dist/length_scale        
+        dist_scaled=dist*math.sqrt(3)/length_scale        
         # Compute the kernel
         K = alpha *(1+dist_scaled)*torch.exp(-dist_scaled)
         
