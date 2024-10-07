@@ -94,8 +94,8 @@ def exact_parameters(results:list):
     for r in range(R):
         temp_r=[]
         temp_op_r=results[r][1]
-        temp_de_r_mu=results[r][0][0][T]
-        temp_de_r_Sigma=results[r][0][1][T]
+        temp_de_r_mu=results[r][0][0][T-1]
+        temp_de_r_Sigma=results[r][0][1][T-1]
         temp_de_r_beta=[]
         temp_de_r_delta=[]
         temp_de_r_theta=[]
