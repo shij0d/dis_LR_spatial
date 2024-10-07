@@ -141,7 +141,7 @@ rs=[r for r in range(100)]
 results = [None] * len(rs)
 # Parallel execution for the list of rs, while maintaining the index (i)
 results = Parallel(n_jobs=-1)(
-    delayed(lambda i, r: (i, estimate_l(r)))(i, r) for i, r in enumerate(rs)
+    delayed(lambda i, r: (i, estimate(r)))(i, r) for i, r in enumerate(rs)
 )
 # Assign results based on the index to maintain order
 for i, result in results:
