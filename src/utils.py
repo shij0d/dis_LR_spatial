@@ -84,3 +84,36 @@ def replace_negative_eigenvalues_with_zero(matrix:torch.Tensor):
     matrix_modified = eigenvectors @ torch.diag(eigenvalues) @ eigenvectors.T
     
     return matrix_modified
+
+def exact_parameters(results:list):
+    #for mu and sigma, only keep their values in the last iteration
+    R=len(results) #replication time
+    T=len(results[0][0][2]) # iteration number
+    J=len(results[0][0][2][0]) #machine number
+    results_new=[]
+    for r in range(R):
+        temp_r=[]
+        temp_op_r=results[r][1]
+        temp_de_r_mu=results[r][0][0][T]
+        temp_de_r_Sigma=results[r][0][1][T]
+        temp_de_r_beta=[]
+        temp_de_r_delta=[]
+        temp_de_r_theta=[]
+        
+        for t in range(T):
+            temp_de_r_t_beta=[]
+            temp_de_r_t_delta=[]
+            temp_de_r_t_theta=[]
+            for j in range(J):
+                temp_de_r_t_beta.append(results[r][0][2][t][j])
+                temp_de_r_t_delta.append(results[r][0][3][t][j])
+                temp_de_r_t_theta.append(results[r][0][4][t][j])
+            
+            temp_de_r_beta.append(temp_de_r_t_beta)
+            temp_de_r_delta.append(temp_de_r_t_delta)
+            temp_de_r_theta.append(temp_de_r_theta)
+        temp_de_r=[temp_de_r_mu,temp_de_r_Sigma,temp_de_r_beta,temp_de_r_delta,temp_de_r_theta]
+        temp_r=[temp_de_r,temp_op_r]
+        results_new.append(temp_r)
+    return results_new
+             

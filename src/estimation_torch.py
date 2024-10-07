@@ -1236,13 +1236,15 @@ class GPPEstimation:
         mu_list,Sigma_list,beta_list,delta_list,theta_list=avg_local_minimizer(mu_list,Sigma_list,beta_list,delta_list,theta_list)
 
 
-        mu_lists=[mu_list]
-        Sigma_lists=[Sigma_list]
+        # mu_lists=[mu_list]
+        # Sigma_lists=[Sigma_list]
         beta_lists=[beta_list]
         delta_lists=[delta_list]
         theta_lists=[theta_list]
         
         for t in range(T):
+            mu_list_p=mu_list
+            Sigma_list_p=Sigma_list
             if t%10==0:
                 print(f"iteration:{t}", end=', ')
             #print(f"iteration:{t}")
@@ -1277,8 +1279,8 @@ class GPPEstimation:
             mu_list, Sigma_list = zip(*results)
             mu_list = list(mu_list)
             Sigma_list = list(Sigma_list)
-            mu_lists.append(mu_list)
-            Sigma_lists.append(Sigma_list)
+            # mu_lists.append(mu_list)
+            # Sigma_lists.append(Sigma_list)
 
 
             # mu_list=[]
@@ -1300,9 +1302,9 @@ class GPPEstimation:
 
             y_XTX_Mstack=torch.tensordot(y_XTX_Mstack, self.weights, dims=1)
             if t==0:
-                y_beta_Mstack=torch.tensordot(y_beta_f_parallel(mu_lists[1],theta_lists[0]), self.weights, dims=1)
+                y_beta_Mstack=torch.tensordot(y_beta_f_parallel(mu_list,theta_lists[0]), self.weights, dims=1)
             else:
-                y_beta_Mstack=torch.tensordot(y_beta_Mstack+y_beta_f_parallel(mu_lists[t+1],theta_lists[t])-y_beta_f_parallel(mu_lists[t],theta_lists[t-1]), self.weights, dims=1)
+                y_beta_Mstack=torch.tensordot(y_beta_Mstack+y_beta_f_parallel(mu_list,theta_lists[t])-y_beta_f_parallel(mu_list_p,theta_lists[t-1]), self.weights, dims=1)
             beta_list=[]
             for j in range(self.J):
                 y_XTX=y_XTX_Mstack[:,:,j]
@@ -1314,9 +1316,9 @@ class GPPEstimation:
 
             #delta
             if t==0:
-                y_delta_Mstack=torch.tensordot(y_delta_f_parallel(mu_lists[1],Sigma_lists[1],beta_lists[1],theta_lists[0]), self.weights, dims=1)
+                y_delta_Mstack=torch.tensordot(y_delta_f_parallel(mu_list,Sigma_list,beta_lists[1],theta_lists[0]), self.weights, dims=1)
             else:
-                y_delta_Mstack=torch.tensordot(y_delta_Mstack+y_delta_f_parallel(mu_lists[t+1],Sigma_lists[t+1],beta_lists[t+1],theta_lists[t])-y_delta_f_parallel(mu_lists[t],Sigma_lists[t],beta_lists[t],theta_lists[t-1]), self.weights, dims=1)
+                y_delta_Mstack=torch.tensordot(y_delta_Mstack+y_delta_f_parallel(mu_list,Sigma_list,beta_lists[t+1],theta_lists[t])-y_delta_f_parallel(mu_list_p,Sigma_list_p,beta_lists[t],theta_lists[t-1]), self.weights, dims=1)
           
             size_stack=torch.tensordot(size_stack, self.weights, dims=1)
 
@@ -1336,21 +1338,21 @@ class GPPEstimation:
             for s in range(S):
 
                 if t==0 and s==0:
-                    y_theta_Mstack=torch.tensordot(y_theta_f_parallel(mu_lists[1],Sigma_lists[1],beta_lists[1],delta_lists[1],theta_list), weights, dims=1)
-                    y_hessian_theta_Mstack=torch.tensordot(y_hessian_theta_f_parallel(mu_lists[1],Sigma_lists[1],beta_lists[1],delta_lists[1],theta_list), weights, dims=1)
+                    y_theta_Mstack=torch.tensordot(y_theta_f_parallel(mu_list,Sigma_list,beta_lists[1],delta_lists[1],theta_list), weights, dims=1)
+                    y_hessian_theta_Mstack=torch.tensordot(y_hessian_theta_f_parallel(mu_list,Sigma_list,beta_lists[1],delta_lists[1],theta_list), weights, dims=1)
                 elif t>=1 and s==0:
-                    y_theta_Mstack=torch.tensordot(y_theta_Mstack+y_theta_f_parallel(mu_lists[t+1],Sigma_lists[t+1],beta_lists[t+1],delta_lists[t+1],theta_list)-y_theta_f_parallel(mu_lists[t],Sigma_lists[t],beta_lists[t],delta_lists[t],theta_list_p), weights, dims=1)
-                    y_hessian_theta_Mstack=torch.tensordot(y_hessian_theta_Mstack+y_hessian_theta_f_parallel(mu_lists[t+1],Sigma_lists[t+1],beta_lists[t+1],delta_lists[t+1],theta_list)-y_hessian_theta_f_parallel(mu_lists[t],Sigma_lists[t],beta_lists[t],delta_lists[t],theta_list_p), weights, dims=1)
+                    y_theta_Mstack=torch.tensordot(y_theta_Mstack+y_theta_f_parallel(mu_list,Sigma_list,beta_lists[t+1],delta_lists[t+1],theta_list)-y_theta_f_parallel(mu_list_p,Sigma_list_p,beta_lists[t],delta_lists[t],theta_list_p), weights, dims=1)
+                    y_hessian_theta_Mstack=torch.tensordot(y_hessian_theta_Mstack+y_hessian_theta_f_parallel(mu_list,Sigma_list,beta_lists[t+1],delta_lists[t+1],theta_list)-y_hessian_theta_f_parallel(mu_list_p,Sigma_list_p,beta_lists[t],delta_lists[t],theta_list_p), weights, dims=1)
                
                 else:
-                    y_theta_Mstack=torch.tensordot(y_theta_Mstack+y_theta_f_parallel(mu_lists[t+1],Sigma_lists[t+1],beta_lists[t+1],delta_lists[t+1],theta_list)-y_theta_f_parallel(mu_lists[t+1],Sigma_lists[t+1],beta_lists[t+1],delta_lists[t+1],theta_list_p), weights, dims=1)
-                    y_hessian_theta_Mstack=torch.tensordot(y_hessian_theta_Mstack+y_hessian_theta_f_parallel(mu_lists[t+1],Sigma_lists[t+1],beta_lists[t+1],delta_lists[t+1],theta_list)-y_hessian_theta_f_parallel(mu_lists[t+1],Sigma_lists[t+1],beta_lists[t+1],delta_lists[t+1],theta_list_p), weights, dims=1)
+                    y_theta_Mstack=torch.tensordot(y_theta_Mstack+y_theta_f_parallel(mu_list,Sigma_list,beta_lists[t+1],delta_lists[t+1],theta_list)-y_theta_f_parallel(mu_list,Sigma_list,beta_lists[t+1],delta_lists[t+1],theta_list_p), weights, dims=1)
+                    y_hessian_theta_Mstack=torch.tensordot(y_hessian_theta_Mstack+y_hessian_theta_f_parallel(mu_list,Sigma_list,beta_lists[t+1],delta_lists[t+1],theta_list)-y_hessian_theta_f_parallel(mu_list,Sigma_list,beta_lists[t+1],delta_lists[t+1],theta_list_p), weights, dims=1)
                 
                 #there are some modifications
                 #com_grad_theta_Mstack=com_grad_theta_f(mu_lists[t+1],Sigma_lists[t+1],theta_list)
                 #com_hessian_theta_Mstack=com_hessian_theta_f(mu_lists[t+1],Sigma_lists[t+1],theta_list)
-                com_grad_theta_Mstack=torch.tensordot(com_grad_theta_f_parallel(mu_lists[t+1],Sigma_lists[t+1],theta_list),weights, dims=1)
-                com_hessian_theta_Mstack=torch.tensordot(com_hessian_theta_f_parallel(mu_lists[t+1],Sigma_lists[t+1],theta_list),weights, dims=1)
+                com_grad_theta_Mstack=torch.tensordot(com_grad_theta_f_parallel(mu_list,Sigma_list,theta_list),weights, dims=1)
+                com_hessian_theta_Mstack=torch.tensordot(com_hessian_theta_f_parallel(mu_list,Sigma_list,theta_list),weights, dims=1)
                 grad_theta_Mstack=y_theta_Mstack*self.J+com_grad_theta_Mstack
                 
                 #print(torch.norm(torch.mean(grad_theta_Mstack,dim=1)))
@@ -1448,7 +1450,7 @@ class GPPEstimation:
             s_list.append(s)
 
 
-        return mu_lists,Sigma_lists,beta_lists,delta_lists,theta_lists,s_list
+        return mu_list,Sigma_list,beta_lists,delta_lists,theta_lists,s_list
 
 
     def ce_optimize_stage2(self,mu:torch.Tensor,Sigma:torch.Tensor,beta:torch.Tensor,delta:torch.Tensor,theta:torch.Tensor,T:int,seed=2024):
