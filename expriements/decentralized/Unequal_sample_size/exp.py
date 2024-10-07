@@ -22,6 +22,7 @@ import pickle
 from functools import partial
 import multiprocessing
 import matplotlib.pyplot as plt
+from joblib import Parallel, delayed
 
 #%%
 
