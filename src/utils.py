@@ -111,7 +111,7 @@ def exact_parameters(results:list):
             
             temp_de_r_beta.append(temp_de_r_t_beta)
             temp_de_r_delta.append(temp_de_r_t_delta)
-            temp_de_r_theta.append(temp_de_r_theta)
+            temp_de_r_theta.append(temp_de_r_t_theta)
         temp_de_r=[temp_de_r_mu,temp_de_r_Sigma,temp_de_r_beta,temp_de_r_delta,temp_de_r_theta]
         temp_r=[temp_de_r,temp_op_r]
         results_new.append(temp_r)
