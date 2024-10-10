@@ -91,7 +91,11 @@ def exact_parameters(results:list):
     T=len(results[0][0][2]) # iteration number
     J=len(results[0][0][2][0]) #machine number
     results_new=[]
+    rep_fail=[]
     for r in range(R):
+        if type(results[r][1])==str:
+            rep_fail.append(r)
+            continue
         temp_r=[]
         temp_op_r=results[r][1]
         temp_de_r_mu=results[r][0][0][T-1]
@@ -115,5 +119,6 @@ def exact_parameters(results:list):
         temp_de_r=[temp_de_r_mu,temp_de_r_Sigma,temp_de_r_beta,temp_de_r_delta,temp_de_r_theta]
         temp_r=[temp_de_r,temp_op_r]
         results_new.append(temp_r)
+        print(rep_fail)
     return results_new
              
