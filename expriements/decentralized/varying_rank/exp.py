@@ -32,7 +32,7 @@ def estimate(r,m):
     alpha=1
     length_scale=0.1
     nu=0.5
-    N=10000
+    N=40000
     mis_dis=0.02
     l=math.sqrt(2*N)*mis_dis
     extent=-l/2,l/2,-l/2,l/2,
