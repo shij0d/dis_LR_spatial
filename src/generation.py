@@ -48,18 +48,18 @@ class GPPSampleGenerator:
         x_min, x_max, y_min, y_max = self.extent  # Unpack extent tuple
 
         # Generate grid of points with minimum distance min_dis
-        xs = np.arange(x_min, x_max, self.min_dis*1.5)
-        if xs[-1] + self.min_dis*1.5 <= x_max:
+        xs = np.arange(x_min, x_max, self.min_dis)
+        if xs[-1] + self.min_dis <= x_max:
             xs = np.append(xs, x_max)
 
-        ys = np.arange(y_min, y_max, self.min_dis*1.5)
-        if ys[-1] + self.min_dis*1.5 <= y_max:
+        ys = np.arange(y_min, y_max, self.min_dis)
+        if ys[-1] + self.min_dis <= y_max:
             ys = np.append(ys, y_max)
 
         random.seed(self.seed)
         np.random.seed(self.seed)
         # Create list of all possible points with added noise
-        noise_scale = 0.25 * self.min_dis  # Adjust this value to control noise level
+        noise_scale = 0.4 * self.min_dis  # Adjust this value to control noise level
         points = [(x + np.random.uniform(-noise_scale, noise_scale), y + np.random.uniform(-noise_scale, noise_scale)) for x in xs for y in ys]
 
         # Randomly sample num points from the list

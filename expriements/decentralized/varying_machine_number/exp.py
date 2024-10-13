@@ -33,8 +33,8 @@ def estimate(r,J):
     length_scale=0.1
     nu=0.5
     N=10000
-    mis_dis=0.01
-    l=math.sqrt(2*N)*1.5*mis_dis
+    mis_dis=0.02
+    l=math.sqrt(2*N)*mis_dis
     extent=-l/2,l/2,-l/2,l/2,
     coefficients=(-1,2,3,-2,1)
     noise_level=2
@@ -137,6 +137,6 @@ for J in Js:
     # Assign results based on the index to maintain order
     for i, result in results:
         results[i] = result
-    with open(f'/home/shij0d/documents/dis_LR_spatial/expriements/decentralized/varying_machine_number/J_{J}.pkl', 'wb') as f:
+    with open(f'/home/shij0d/documents/dis_LR_spatial/expriements/decentralized/varying_machine_number/more_irregular/J_{J}_memeff.pkl', 'wb') as f:
         pickle.dump(results, f)
 
