@@ -144,5 +144,5 @@ for m in ms:
     # Assign results based on the index to maintain order
     for i, result in results:
         results[i] = result
-    with open(f'/home/shij0d/documents/dis_LR_spatial/expriements/decentralized/more_irregular/varying_rank/m_{m}_memeff.pkl', 'wb') as f:
+    with open(f'/home/shij0d/documents/dis_LR_spatial/expriements/decentralized/varying_rank/more_irregular/m_{m}_memeff.pkl', 'wb') as f:
         pickle.dump(results, f)
