@@ -215,6 +215,54 @@ class GPPSampleGenerator:
         z = y+value
         data=np.hstack((locations,z,X))
         return data,knots
+    def generate_obs_gpp_est_pre(self,N_pre,m,method):
+
+        """
+        Generates observations following Gaussian Predictive Process(GPP) and divide into two data set for estimation and prediction,respetively.
+
+        Parameters:
+        - m (int): Number of knot points.
+        - method (str): Method for selecting knot points ("random" or "grid").
+
+        Returns:
+        - numpy.ndarray: Array of generated observations.
+        """
+
+        locations=self.random_points()    
+        N=len(locations)
+        N_est=N-N_pre
+        locations_est=locations[0:N_est]
+        locations_pre=locations[N_est:]
+        # Compute the number of knots (m)
+        if method=="random":
+            knots=self.get_knots_random(locations_est,m)
+        elif method=="grid":
+            knots=self.get_knots_grid(m)
+        else:  
+            raise("Invalid choice. Please select from 'random' or 'grid'.")  
+        m = len(knots)
+
+        # Generate random eta values from a multivariate normal distribution
+        np.random.seed(self.seed)
+        mean_eta = np.zeros(m)
+        cov_eta = self.kernel(np.array(knots))
+        eta = np.random.multivariate_normal(mean_eta, cov_eta)
+        eta=eta.reshape(-1,1)
+        # Compute the product B = K(locations, knots) @ inv(cov_eta)
+        B = self.kernel(np.array(locations), np.array(knots)) @ np.linalg.inv(cov_eta)
+        
+        
+
+        # Generate y using the GPP model: y = B @ eta
+        y = B @ eta
+
+
+        value,X=self.generate_x_epsilon()
+        z = y+value
+        data=np.hstack((locations,z,X))
+        
+        return data,knots
+    
     
     def data_split(self,data,J):
         dis_data=np.array_split(data,J,axis=0)

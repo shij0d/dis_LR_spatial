@@ -23,22 +23,23 @@ from functools import partial
 import multiprocessing
 import matplotlib.pyplot as plt
 from joblib import Parallel, delayed
-
+import time
 #%%
 
 
 
-def estimate(r,J):
+def estimate(J):
     alpha=1
     length_scale=0.1
     nu=0.5
-    N=10000
+    n=10000
+    N=n*J
     mis_dis=0.02
     l=math.sqrt(2*N)*mis_dis
     extent=-l/2,l/2,-l/2,l/2,
     coefficients=(-1,2,3,-2,1)
     noise_level=2
-    #J=10
+    J=10
     con_pro=0.5
     er = generate_connected_erdos_renyi_graph(J, con_pro)
     adj_matrix=nx.adjacency_matrix(er).todense()
@@ -48,7 +49,7 @@ def estimate(r,J):
     #weights = torch.ones((J,J),dtype=torch.float64)/J
 
     kernel=alpha*Matern(length_scale=length_scale,nu=nu)
-    sampler=GPPSampleGenerator(num=N,min_dis=mis_dis,extent=extent,kernel=kernel,coefficients=coefficients,noise=noise_level,seed=r)
+    sampler=GPPSampleGenerator(num=N,min_dis=mis_dis,extent=extent,kernel=kernel,coefficients=coefficients,noise=noise_level,seed=2024)
     data,knots=sampler.generate_obs_gpp(m=100,method="random")
     dis_data=sampler.data_split(data,J)
     
@@ -63,23 +64,15 @@ def estimate(r,J):
     delta=torch.tensor(0.25,dtype=torch.float64)
     theta=torch.tensor([alpha,length_scale],dtype=torch.float64)
     x_true=gpp_estimation.argument2vector_lik(beta,delta,theta)
-    try:
-        mu,Sigma,beta,delta,theta,result=gpp_estimation.get_minimier(x_true)
-        optimal_estimator=(mu,Sigma,beta,delta,theta,result)
-        print("global optimization succeed")
-    except Exception:
-        optimal_estimator=(r, "global minimization error")
-        print("global optimization failed")
     
-    try:
-        mu_list,Sigma_list,beta_list,delta_list,theta_list,_,_=gpp_estimation.get_local_minimizers_parallel(x_true)
-        print("local optimization succeed")
-    except Exception:
-        print("local optimization failed")
-        return (r, "local minimization error")
-    if len(mu_list)==0:
-        print("local optimization failed")
-        return (r, "local minimization error")    
+    start_time = time.time()
+    mu,Sigma,beta,delta,theta,result=gpp_estimation.get_minimier(x_true)
+    optimal_estimator=(mu,Sigma,beta,delta,theta,result)
+    end_time = time.time()
+    elapsed_time_mle = end_time - start_time
+    
+    start_time = time.time()
+    mu_list,Sigma_list,beta_list,delta_list,theta_list,_,_=gpp_estimation.get_local_minimizers_parallel(x_true,J)
     
     mu=mu_list[0]
     Sigma=Sigma_list[0]
@@ -99,44 +92,18 @@ def estimate(r,J):
     beta=beta/num
     delta=delta/num
     theta=theta/num
-    mu_list=[]
-    Sigma_list=[]
-    beta_list=[]
-    delta_list=[]
-    theta_list=[]
-    for j in range(J):
-        mu_list.append(mu)
-        Sigma_list.append(Sigma)
-        beta_list.append(beta)
-        delta_list.append(delta)
-        theta_list.append(theta)
-
+   
 
     T=100
-    try:
-        de_estimators=gpp_estimation.de_optimize_stage2(mu_list,Sigma_list,beta_list,delta_list,theta_list,T=T,weights_round=6)
-        print("dis optimization succeed")
-    except Exception:
-        print("dis optimization failed")
-        return (r, "distributed minimization error")
-  
-    return de_estimators,optimal_estimator
 
-num_cores = multiprocessing.cpu_count()
-Js=[20,40]
-#nu_lengths=[(1.5,0.148)]
-rs=[r for r in range(100)]
+    de_estimators=gpp_estimation.ce_optimize_stage2(mu,Sigma,beta,delta,theta,T,J)
+    end_time = time.time()
+    elapsed_time_de = end_time - start_time
+    return elapsed_time_mle,elapsed_time_de,de_estimators,optimal_estimator
+
+Js=[10,20,40]
+results=[]
 for J in Js:
-    print(f"J:{J}")
-    estimate_l=partial(estimate,J=J)
-    results = [None] * len(rs)
-    # Parallel execution for the list of rs, while maintaining the index (i)
-    results = Parallel(n_jobs=-1)(
-        delayed(lambda i, r: (i, estimate_l(r)))(i, r) for i, r in enumerate(rs)
-    )
-    # Assign results based on the index to maintain order
-    for i, result in results:
-        results[i] = result
-    with open(f'/home/shij0d/documents/dis_LR_spatial/expriements/decentralized/varying_machine_number/more_irregular/J_{J}_memeff.pkl', 'wb') as f:
-        pickle.dump(results, f)
-
+    result=estimate(J)
+    results.append(results)
+    

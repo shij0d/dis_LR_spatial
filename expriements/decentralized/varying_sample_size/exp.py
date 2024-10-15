@@ -72,7 +72,7 @@ def estimate(r,N):
         print("global optimization failed")
     
     try:
-        mu_list,Sigma_list,beta_list,delta_list,theta_list,_,_=gpp_estimation.get_local_minimizers(x_true)
+        mu_list,Sigma_list,beta_list,delta_list,theta_list,_,_=gpp_estimation.get_local_minimizers_parallel(x_true)
         print("local optimization succeed")
     except Exception:
         print("local optimization failed")
