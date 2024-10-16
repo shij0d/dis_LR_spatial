@@ -264,9 +264,16 @@ class GPPSampleGenerator:
         return data,knots
     
     
-    def data_split(self,data,J):
-        dis_data=np.array_split(data,J,axis=0)
+    def data_split(self,data,J,method='random'):
+        '''
+        method: random, by area, rnearest
+        '''
+        if method=='random':
+            dis_data=np.array_split(data,J,axis=0)
+        if method=='1':
+            1
         return dis_data
+    
     
     
 
