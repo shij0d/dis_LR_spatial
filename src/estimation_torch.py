@@ -1497,7 +1497,7 @@ class GPPEstimation:
         y_XTX=torch.zeros((self.p,self.p),dtype=torch.double)
         def compute_XTX_j(j):
             local_X = local_X_f(j)
-            return torch.tensor(local_X.T @ local_X)
+            return local_X.T @ local_X
         results = Parallel(n_jobs=job_num)(delayed(compute_XTX_j)(j) for j in range(self.J))
         for j in range(self.J):
             y_XTX+=results[j]
@@ -1518,7 +1518,7 @@ class GPPEstimation:
             def compute_j(j, beta_j, theta_j):
                 local_B = local_B_f(j, theta_j)
                 local_errorV = local_erorrV_f(j, beta_j)
-                return torch.tensor(-local_B.T @ local_errorV)
+                return -local_B.T @ local_errorV
 
             # Parallel execution for each j
             results = Parallel(n_jobs=job_num)(delayed(compute_j)(j, beta, theta) for j in range(self.J))
@@ -1652,9 +1652,8 @@ class GPPEstimation:
             # Populate y_theta_Mstack with the results
             for j, local_g_theta in results:
                 y_theta_M += local_g_theta
-
-            # Optionally move results back to CPU
-            return y_theta_M  # Return as a CPU tensor if needed
+            y_theta_M=y_theta_M/self.J
+            return y_theta_M  
         def y_theta_f(mu,Sigma,beta,delta,theta):
             y_theta_M=torch.zeros((2,1),dtype=torch.double)
             for j in range(self.J):
@@ -1671,7 +1670,7 @@ class GPPEstimation:
 
             for j, local_h_theta in results:
                 hessian_theta_M+=local_h_theta
-
+            hessian_theta_M=hessian_theta_M/self.J
             return hessian_theta_M
         def y_hessian_theta_f(mu,Sigma,beta,delta,theta):
             hessian_theta_M=torch.zeros((2,2),dtype=torch.double)
@@ -1709,7 +1708,7 @@ class GPPEstimation:
 
             for j, local_g_theta in results:
                 com_grad_theta_M += local_g_theta
-
+            com_grad_theta_M=com_grad_theta_M/self.J
             return com_grad_theta_M
         def com_grad_theta_f(mu,Sigma,theta):
             com_grad_theta_M=torch.zeros((2,1),dtype=torch.double)
@@ -1728,6 +1727,7 @@ class GPPEstimation:
 
             for j, com_h_theta in results:
                 com_hessian_theta_M +=com_h_theta
+            com_hessian_theta_M=com_hessian_theta_M/self.J
             return com_hessian_theta_M
         
         def com_hessian_theta_f(mu,Sigma,theta):
@@ -1761,8 +1761,6 @@ class GPPEstimation:
             y_Sigma=y_Sigma_f_parallel(theta_list[t])
             K=K_f(theta_list[t])
             invK=torch.linalg.inv(K)
-            mu_pre=mu
-            Sigma_pre=Sigma
             Sigma=torch.linalg.inv(delta_list[t]*self.J*y_Sigma+invK)
             mu=torch.linalg.inv(delta_list[t]*y_Sigma+invK/self.J)*delta_list[t]@y_mu
 
