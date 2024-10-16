@@ -1755,7 +1755,9 @@ class GPPEstimation:
         theta_list=[theta]
         s_list=[]
         for t in range(T):
-            print(f"iteration:{t}")
+            if t%10==0:
+                print(f"iteration:{t}", end=', ')
+            #print(f"iteration:{t}")
             #mu and Sigma
             y_mu=y_mu_f_parallel(beta_list[t],theta_list[t])
             y_Sigma=y_Sigma_f_parallel(theta_list[t])
@@ -1835,7 +1837,7 @@ class GPPEstimation:
                             Continue=False
 
                 
-                print(f"theta:{theta},gradient:{torch.norm(grad)}")
+                #print(f"theta:{theta},gradient:{torch.norm(grad)}")
             theta_list.append(theta)
             s_list.append(s)
 
