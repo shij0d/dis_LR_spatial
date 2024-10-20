@@ -1457,7 +1457,7 @@ class GPPEstimation:
         return mu_list,Sigma_list,beta_lists,delta_lists,theta_lists,s_list
 
 
-    def ce_optimize_stage2(self,mu:torch.Tensor,Sigma:torch.Tensor,beta:torch.Tensor,delta:torch.Tensor,theta:torch.Tensor,T:int,job_num,seed=2024,thread_num=None):
+    def ce_optimize_stage2(self,mu:torch.Tensor,Sigma:torch.Tensor,beta:torch.Tensor,delta:torch.Tensor,theta:torch.Tensor,T:int,job_num,seed=2024,thread_num=None,backend='threading'):
         torch.manual_seed(seed)
         if thread_num!=None:
             torch.set_num_threads(thread_num)
@@ -1498,7 +1498,7 @@ class GPPEstimation:
         def compute_XTX_j(j):
             local_X = local_X_f(j)
             return local_X.T @ local_X
-        results = Parallel(n_jobs=job_num)(delayed(compute_XTX_j)(j) for j in range(self.J))
+        results = Parallel(n_jobs=job_num,backend=backend)(delayed(compute_XTX_j)(j) for j in range(self.J))
         for j in range(self.J):
             y_XTX+=results[j]
         y_XTX=y_XTX/self.J
@@ -1521,7 +1521,7 @@ class GPPEstimation:
                 return -local_B.T @ local_errorV
 
             # Parallel execution for each j
-            results = Parallel(n_jobs=job_num)(delayed(compute_j)(j, beta, theta) for j in range(self.J))
+            results = Parallel(n_jobs=job_num,backend=backend)(delayed(compute_j)(j, beta, theta) for j in range(self.J))
             
             # Stack the results
             for j in range(self.J):
@@ -1550,7 +1550,7 @@ class GPPEstimation:
                 return local_B.T @ local_B
 
             # Parallel execution for each j
-            results = Parallel(n_jobs=job_num)(delayed(compute_j)(j, theta) for j in range(self.J))
+            results = Parallel(n_jobs=job_num,backend=backend)(delayed(compute_j)(j, theta) for j in range(self.J))
             
             # Stack the results
             for j in range(self.J):
@@ -1578,7 +1578,7 @@ class GPPEstimation:
                 return local_X.T @ (local_z - local_B @ mu_j)
 
             # Parallel execution for each j
-            results = Parallel(n_jobs=job_num)(delayed(compute_j)(j, mu, theta) for j in range(self.J))
+            results = Parallel(n_jobs=job_num,backend=backend)(delayed(compute_j)(j, mu, theta) for j in range(self.J))
             
             # Stack the results
             for j in range(self.J):
@@ -1610,7 +1610,7 @@ class GPPEstimation:
                 return term1 + term2 + term3
 
             # Parallel execution for each j
-            results = Parallel(n_jobs=job_num)(delayed(compute_j)(j, mu, Sigma, beta, theta) for j in range(self.J))
+            results = Parallel(n_jobs=job_num,backend=backend)(delayed(compute_j)(j, mu, Sigma, beta, theta) for j in range(self.J))
             
             # Stack the results
             for j in range(self.J):
@@ -1633,7 +1633,7 @@ class GPPEstimation:
             def compute_j(j, mu_j, Sigma_j, beta_j,delta_j,theta_j):
                 local_value=self.local_value(j,mu_j, Sigma_j, beta_j,delta_j, theta_j)
                 return local_value
-            results = Parallel(n_jobs=job_num)(delayed(compute_j)(j, mu,Sigma,beta,delta,theta) for j in range(self.J))
+            results = Parallel(n_jobs=job_num,backend=backend)(delayed(compute_j)(j, mu,Sigma,beta,delta,theta) for j in range(self.J))
             for j in range(self.J):
                 y_value_M+=results[j].reshape(-1,1)
             y_value_M=y_value_M/self.J
@@ -1686,7 +1686,7 @@ class GPPEstimation:
                 return j, local_g_theta.reshape(-1, 1)
 
             # Parallelize the computation using joblib
-            results = Parallel(n_jobs=job_num)(delayed(compute_local_grad)(j, mu, Sigma, beta, delta, theta) for j in range(self.J))
+            results = Parallel(n_jobs=job_num,backend=backend)(delayed(compute_local_grad)(j, mu, Sigma, beta, delta, theta) for j in range(self.J))
 
             # Populate y_theta_Mstack with the results
             for j, local_g_theta in results:
@@ -1709,7 +1709,7 @@ class GPPEstimation:
             def compute_local_hessian(j,mu_j, Sigma_j, beta_j, delta_j, theta_j):
                 local_h_theta = self.local_hessian_theta(j, mu_j, Sigma_j, beta_j, delta_j, theta_j)
                 return j, local_h_theta
-            results = Parallel(n_jobs=job_num)(delayed(compute_local_hessian)(j, mu, Sigma, beta, delta, theta) for j in range(self.J))
+            results = Parallel(n_jobs=job_num,backend=backend)(delayed(compute_local_hessian)(j, mu, Sigma, beta, delta, theta) for j in range(self.J))
 
             for j, local_h_theta in results:
                 hessian_theta_M+=local_h_theta

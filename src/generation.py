@@ -264,14 +264,47 @@ class GPPSampleGenerator:
         return data,knots
     
     
-    def data_split(self,data,J,method='random'):
+    def data_split(self,data,J,method='random',nearest_points_times=None):
         '''
-        method: random, by area, rnearest
+        method: random, by area, random_nearest
         '''
         if method=='random':
             dis_data=np.array_split(data,J,axis=0)
-        if method=='1':
-            1
+        if method=='by_area':
+            sqrt_J=int(math.sqrt(J))
+            if int(sqrt_J**2)!=J:
+                Warning("it is not a perfect square")
+            locations=data[:,:2]
+            x_min, x_max = locations[:, 0].min(), locations[:, 0].max()
+            y_min, y_max = locations[:, 1].min(), locations[:, 1].max()
+            
+            # Define the partition edges
+            x_bins = np.linspace(x_min, x_max, sqrt_J + 1)
+            y_bins = np.linspace(y_min, y_max, sqrt_J + 1)
+            
+            dis_data = []
+            
+            # Loop over all partitions and collect data
+            for i in range(sqrt_J):
+                for j in range(sqrt_J):
+                    # Find locations that belong to this partition
+                    x_in_bin = (locations[:, 0] >= x_bins[i]) & (locations[:, 0] < x_bins[i+1])
+                    y_in_bin = (locations[:, 1] >= y_bins[j]) & (locations[:, 1] < y_bins[j+1])
+                    in_bin = x_in_bin & y_in_bin
+                    
+                    # Get the corresponding data for this partition
+                    partition_data = data[in_bin]
+                    dis_data.append(partition_data)
+        if method=='random_nearest':
+            if nearest_points_times==None:
+                raise("please specify the number of nearest points")
+            N=data.shape[0]
+            n=int(N/J)
+            random_pionts_num=int(n/(1+nearest_points_times))
+            for j in range(J):
+                1
+            
+            
         return dis_data
     
     
