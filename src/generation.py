@@ -132,7 +132,7 @@ class GPPSampleGenerator:
 
         return value,X
     
-    def generate_obs_gp(self):
+    def generate_obs_gp(self,m,method):
         """
         Generates observations following Gaussian Process.
 
@@ -141,7 +141,12 @@ class GPPSampleGenerator:
         """
 
         locations=self.random_points()
-
+        if method=="random":
+            knots=self.get_knots_random(locations,m)
+        elif method=="grid":
+            knots=self.get_knots_grid(m)
+        else:  
+            raise("Invalid choice. Please select from 'random' or 'grid'.")
         # Compute the covariance matrix using the kernel function
         cov = self.kernel(np.array(locations))
 
@@ -156,7 +161,7 @@ class GPPSampleGenerator:
         value,X=self.generate_x_epsilon()
         z = y+value
         data=np.hstack((locations,z,X))
-        return data
+        return data,knots
     
     
     def generate_obs_gpp(self,m,method):
@@ -174,14 +179,12 @@ class GPPSampleGenerator:
 
         locations=self.random_points()    
 
-        # Compute the number of knots (m)
         if method=="random":
             knots=self.get_knots_random(locations,m)
         elif method=="grid":
             knots=self.get_knots_grid(m)
         else:  
             raise("Invalid choice. Please select from 'random' or 'grid'.")  
-        m = len(knots)
 
         # Generate random eta values from a multivariate normal distribution
         np.random.seed(self.seed)
@@ -342,19 +345,21 @@ class GPPSampleGenerator:
                 dis_data.append(partition_data)
         
         return dis_data
-    def visual_locations(dis_data:list[np.ndarray]):
+    def visual_locations(dis_data:list[np.ndarray],save_file=None):
         J=len(dis_data)
         colors = plt.cm.get_cmap('tab10', J)  # Choose a colormap for the partitions
         plt.figure(figsize=(8, 6))
         for i, partition in enumerate(dis_data):
             partition_locations = partition[:, :2]  # Only the 2D locations
-            plt.scatter(partition_locations[:, 0], partition_locations[:, 1], color=colors(i), label=f'Partition {i+1}', alpha=0.7)
+            plt.scatter(partition_locations[:, 0], partition_locations[:, 1], color=colors(i),alpha=0.5,s=10)
         plt.title('Partitioned Locations')
         plt.xlabel('X Coordinate')
         plt.ylabel('Y Coordinate')
         plt.legend()
         plt.grid(True)
         plt.show()
+        if save_file!=None:
+            plt.savefig(save_file)
     
     
 
