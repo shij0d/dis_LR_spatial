@@ -1409,16 +1409,16 @@ class GPPEstimation:
                 while Continue:
                     theta_Mstack_new=torch.tensordot(theta_Mstack-step_size*invh_m_grad_Mstack, self.weights, dims=1)  
                     theta_list_new=Mstack2list(theta_Mstack_new) 
-                    if torch.all(theta_Mstack_new>0.005):
+                    if torch.all(theta_Mstack_new>0.05):
                         
-                        if s>=1 and step_size>0.05 and torch.norm(torch.mean(grad_theta_Mstack,dim=1))>=torch.norm(torch.mean(grad_theta_Mstack_p,dim=1)):
+                        if s>=1 and step_size>0.01 and torch.norm(torch.mean(grad_theta_Mstack,dim=1))>=torch.norm(torch.mean(grad_theta_Mstack_p,dim=1)):
                             step_size*=shrink_rate
                         else:
                            theta_list_p=theta_list.copy()
                            theta_list=theta_list_new
                            Continue=False
                     else:
-                        if step_size>0.05:
+                        if step_size>0.01:
                             step_size*=shrink_rate
                         else:
                             theta_Mstack=theta_Mstack+noise
