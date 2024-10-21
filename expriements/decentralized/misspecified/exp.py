@@ -121,10 +121,6 @@ def estimate(r):
 
 
 rs=[i for i in range(100)]
-results = [None] * len(rs)
-# Parallel execution for the list of rs, while maintaining the index (i)
-results = Parallel(n_jobs=-1)(delayed(estimate)(r) for r in enumerate(rs))
-for i, result in results:
-    results[i] = result
-    with open(f'/home/shij0d/documents/dis_LR_spatial/expriements/decentralized/misspecified/results_memeff.pkl', 'wb') as f:
-        pickle.dump(results, f)
+results = Parallel(n_jobs=-1)(delayed(estimate)(r) for r in rs)
+with open(f'/home/shij0d/documents/dis_LR_spatial/expriements/decentralized/misspecified/results_memeff.pkl', 'wb') as f:
+    pickle.dump(results, f)

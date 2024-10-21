@@ -128,21 +128,16 @@ for method in partition_methods:
     if method=='random_nearest':
         for neighbours in neighbours_list:
             estimate_l=partial(estimate,partition_method=method,neighbours=neighbours)
-            results = [None] * len(rs)
-            # Parallel execution for the list of rs, while maintaining the index (i)
             results = Parallel(n_jobs=-1)(
-                delayed(lambda i, r: (i, estimate_l(r)))(i, r) for i, r in enumerate(rs)
+                delayed(estimate_l)(r) for r in rs
             )
-            for i, result in results:
-                results[i] = result
             with open(f'/home/shij0d/documents/dis_LR_spatial/expriements/decentralized/partition/method_{method}_neighbours_{neighbours}_memeff.pkl', 'wb') as f:
                 pickle.dump(results, f)
     else:
         estimate_l=partial(estimate,partition_method=method)
-        results = [None] * len(rs)
-        # Parallel execution for the list of rs, while maintaining the index (i)
         results = Parallel(n_jobs=-1)(
-            delayed(lambda i, r: (i, estimate_l(r)))(i, r) for i, r in enumerate(rs)
+            delayed(estimate_l)(r) for r in rs
         )
+       
         with open(f'/home/shij0d/documents/dis_LR_spatial/expriements/decentralized/partition/method_{method}_memeff.pkl', 'wb') as f:
             pickle.dump(results, f)
