@@ -307,12 +307,13 @@ class GPPSampleGenerator:
             n = int(N / J)  # Size of each partition
             N_random = J * int(n / (1 + neighbours))  # Number of random locations
 
+            np.random.seed(self.seed)
+            data=np.random.permutation(data)
             locations = data[:, :2]  # Only use the first two columns for locations
-            random_indices = np.random.choice(N, N_random, replace=False)  # Randomly select locations
-            random_locations = locations[random_indices, :]  # Get random locations
+            random_locations = locations[0:N_random, :]  # Get random locations
 
             # Use scipy.spatial.distance.cdist for efficient distance calculation
-            rest_locations = np.delete(locations, random_indices, axis=0)  # Remaining locations
+            rest_locations=locations[N_random:,:]
             dists = cdist(rest_locations, random_locations)  # Calculate pairwise distances
 
             # Initialize neighbour indices and nums
@@ -324,7 +325,7 @@ class GPPSampleGenerator:
                 # Set large distance for locations with full neighbors
                 dist_row[nums >= neighbours] = np.inf
                 idx = np.argmin(dist_row)  # Find the nearest random location
-                neighbours_idx[idx, nums[idx]] = i  # Assign the point index
+                neighbours_idx[idx, nums[idx]] = i+N_random  # Assign the point index
                 nums[idx] += 1  # Increment the neighbor count
 
             # Partition the data based on the neighbor indices
@@ -333,6 +334,7 @@ class GPPSampleGenerator:
                 partition_indices = []
                 for i in range(int(n / (1 + neighbours))):
                     # Collect neighbor indices for this partition
+                    partition_indices.append(j * int(n / (1 + neighbours)) + i)
                     partition_indices.extend(neighbours_idx[j * int(n / (1 + neighbours)) + i, :].tolist())
                 
                 partition_indices = [idx for idx in partition_indices if idx >= 0]  # Remove invalid (-1) indices
