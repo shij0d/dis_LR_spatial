@@ -37,8 +37,8 @@ class GPPPrediction:
         
         
     def predict(self):
-        B=self.kernel(self.location,self.knots)@torch.linalg.inv(self.kernel(self.knots))
-        mean_pred=self.X@self.beta+B@self.mu
+        B=self.kernel(self.location,self.knots,self.theta)@torch.linalg.inv(self.kernel(self.knots,self.knots,theta=self.theta))
+        mean_pred=torch.tensor(self.X)@self.beta+B@self.mu
         N_pre=self.location.shape[0]
         cov_pred=B@self.Sigma@B.T+1/(self.delta**2)*torch.eye(N_pre)
         
