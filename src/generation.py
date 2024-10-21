@@ -6,6 +6,11 @@ from sklearn.gaussian_process.kernels import Kernel
 import numpy as np
 import random
 import math
+from scipy.spatial.distance import cdist
+import matplotlib.pyplot as plt
+
+#a large number
+M=10*8
 
 class GPPSampleGenerator:
     def __init__(self,num: int, min_dis: float, extent: tuple[float, float, float, float],kernel: Kernel,coefficients: list[float], noise: float,seed=2024):
@@ -264,7 +269,7 @@ class GPPSampleGenerator:
         return data,knots
     
     
-    def data_split(self,data,J,method='random',nearest_points_times=None):
+    def data_split(self,data,J,method='random',neighbours=None):
         '''
         method: random, by area, random_nearest
         '''
@@ -296,17 +301,58 @@ class GPPSampleGenerator:
                     partition_data = data[in_bin]
                     dis_data.append(partition_data)
         if method=='random_nearest':
-            if nearest_points_times==None:
-                raise("please specify the number of nearest points")
-            N=data.shape[0]
-            n=int(N/J)
-            random_pionts_num=int(n/(1+nearest_points_times))
+            if neighbours==None:
+                raise("please specify the number of nearest locations")
+            N = data.shape[0]
+            n = int(N / J)  # Size of each partition
+            N_random = J * int(n / (1 + neighbours))  # Number of random locations
+
+            locations = data[:, :2]  # Only use the first two columns for locations
+            random_indices = np.random.choice(N, N_random, replace=False)  # Randomly select locations
+            random_locations = locations[random_indices, :]  # Get random locations
+
+            # Use scipy.spatial.distance.cdist for efficient distance calculation
+            rest_locations = np.delete(locations, random_indices, axis=0)  # Remaining locations
+            dists = cdist(rest_locations, random_locations)  # Calculate pairwise distances
+
+            # Initialize neighbour indices and nums
+            neighbours_idx = np.full((N_random, neighbours), -1, dtype=int)  # Stores the neighbor indices
+            nums = np.zeros(N_random, dtype=int)  # Keeps track of neighbors per random location
+
+            # Assign each point to its nearest random location (up to 'neighbours' per random location)
+            for i, dist_row in enumerate(dists):
+                # Set large distance for locations with full neighbors
+                dist_row[nums >= neighbours] = np.inf
+                idx = np.argmin(dist_row)  # Find the nearest random location
+                neighbours_idx[idx, nums[idx]] = i  # Assign the point index
+                nums[idx] += 1  # Increment the neighbor count
+
+            # Partition the data based on the neighbor indices
+            dis_data = []
             for j in range(J):
-                1
-            
-            
+                partition_indices = []
+                for i in range(int(n / (1 + neighbours))):
+                    # Collect neighbor indices for this partition
+                    partition_indices.extend(neighbours_idx[j * int(n / (1 + neighbours)) + i, :].tolist())
+                
+                partition_indices = [idx for idx in partition_indices if idx >= 0]  # Remove invalid (-1) indices
+                partition_data = data[partition_indices, :]  # Get the partitioned data
+                dis_data.append(partition_data)
+        
         return dis_data
-    
+    def visual_locations(dis_data:list[np.ndarray]):
+        J=len(dis_data)
+        colors = plt.cm.get_cmap('tab10', J)  # Choose a colormap for the partitions
+        plt.figure(figsize=(8, 6))
+        for i, partition in enumerate(dis_data):
+            partition_locations = partition[:, :2]  # Only the 2D locations
+            plt.scatter(partition_locations[:, 0], partition_locations[:, 1], color=colors(i), label=f'Partition {i+1}', alpha=0.7)
+        plt.title('Partitioned Locations')
+        plt.xlabel('X Coordinate')
+        plt.ylabel('Y Coordinate')
+        plt.legend()
+        plt.grid(True)
+        plt.show()
     
     
 
