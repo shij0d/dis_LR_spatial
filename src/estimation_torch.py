@@ -320,7 +320,7 @@ class GPPEstimation:
         # Compute the kernel matrices
         K = self.kernel(self.knots, self.knots, theta)
         invK = torch.inverse(K)
-        f_value = mu.T @ invK @ mu + torch.trace(invK @ Sigma) - torch.log(torch.det(Sigma) / torch.det(K))
+        f_value = mu.T @ invK @ mu + torch.trace(invK @ Sigma) - torch.logdet(Sigma)+torch.logdet(K) 
 
         if requires_grad:
             # Compute the gradients
@@ -364,7 +364,7 @@ class GPPEstimation:
         theta.requires_grad_(True)
         K = self.kernel(self.knots, self.knots, theta)
         invK = torch.inverse(K)
-        f_value = mu.T @ invK @ mu + torch.trace(invK @ Sigma) - torch.log(torch.det(Sigma) / torch.det(K))
+        f_value = mu.T @ invK @ mu + torch.trace(invK @ Sigma) - torch.logdet(Sigma)+torch.logdet(K) 
 
         return f_value
     
@@ -376,34 +376,19 @@ class GPPEstimation:
         K = self.kernel(self.knots, self.knots, theta)
         invK = torch.inverse(K)
         #f_value = mu.T @ invK @ mu + torch.trace(invK @ Sigma) - torch.log(torch.det(Sigma) / torch.det(K))
-        f_value = mu.T @ invK @ mu + torch.trace(invK @ Sigma) +torch.log( torch.det(K))
+        f_value = mu.T @ invK @ mu + torch.trace(invK @ Sigma) +torch.logdet(K)
         f_value.backward()
         grad = theta.grad
         return grad
     
     def com_hessian_theta(self,mu:torch.Tensor,Sigma:torch.Tensor,theta:torch.Tensor):
 
-        def com_f1(theta_v:torch.Tensor):
+        def com_f(theta_v:torch.Tensor):
             K = self.kernel(self.knots, self.knots, theta_v)
             invK = torch.inverse(K)
-            f_value = mu.T @ invK @ mu + torch.trace(invK @ Sigma) 
+            f_value = mu.T @ invK @ mu + torch.trace(invK @ Sigma)+torch.logdet(K)
             return f_value
-        def det(theta_v):
-            K = self.kernel(self.knots, self.knots, theta_v)
-            det=torch.det(K)
-            return det
-        def hessian2(theta_v:torch.Tensor):
-            value=det(theta_v)
-            jac=jacobian(det,theta)
-            hes=hessian(det,theta_v)
-            jac_scaled=jac/value
-            jac_scaled=jac_scaled.reshape(-1,1)
-            hes2=hes/value-jac_scaled@jac_scaled.T
-            return hes2
-            
-        hes1=hessian(com_f1,theta.squeeze())
-        hes2=hessian2(theta.squeeze())
-        Hessian=hes1+hes2
+        Hessian=hessian(com_f,theta.squeeze())
         return Hessian
 
     def neg_log_lik(self, local_locs:torch.Tensor, local_z:torch.Tensor, local_X:torch.Tensor, params:torch.Tensor, requires_grad=True):
@@ -429,7 +414,7 @@ class GPPEstimation:
         tempM=invK+delta*B.T@B
         errorv=local_X@beta-local_z
 
-        f_value=torch.log(torch.linalg.det(tempM))+torch.log(torch.linalg.det(K))-n*torch.log(delta)+delta*(errorv.T)@errorv-delta**2*(errorv.T@B@torch.linalg.inv(tempM)@B.T@errorv)
+        f_value=torch.logdet(tempM)+torch.logdet(K)-n*torch.log(delta)+delta*(errorv.T)@errorv-delta**2*(errorv.T@B@torch.linalg.inv(tempM)@B.T@errorv)
         f_value=f_value/n
 
         if requires_grad:

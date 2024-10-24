@@ -188,7 +188,7 @@ class GPPSampleGenerator:
 
         # Generate random eta values from a multivariate normal distribution
         np.random.seed(self.seed)
-        mean_eta = np.zeros(m)
+        mean_eta = np.zeros(np.array(knots).shape[0])
         cov_eta = self.kernel(np.array(knots))
         eta = np.random.multivariate_normal(mean_eta, cov_eta)
         eta=eta.reshape(-1,1)
