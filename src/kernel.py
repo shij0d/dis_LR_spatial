@@ -263,3 +263,83 @@ def squared_exponential_kernel(X:torch.Tensor|np.ndarray, Y:torch.Tensor|np.ndar
         return K
 
 
+class scaled_besselKv(torch.autograd.Function):
+    @staticmethod
+    def forward(ctx, x:torch.Tensor, v:float):
+        ctx.save_for_backward(x)
+        ctx._v = v
+        if v>0:
+            c=2**(1-v)/gamma(v)
+        else:
+            c=1
+        x_numpy=x.numpy()
+        values = np.ones_like(x_numpy)/c
+        non_zero_indices = x_numpy != 0
+        values[non_zero_indices] = (x_numpy[non_zero_indices] ** v) * kv(v, x_numpy[non_zero_indices])
+        return torch.from_numpy(values)
+    @staticmethod
+    def backward(ctx, grad_out):
+        x, = ctx.saved_tensors
+        v = ctx._v
+        grad_x=torch.zeros_like(x)
+        non_zero_indices = x != 0
+        if v<1: 
+            grad_x[non_zero_indices]=-(x[non_zero_indices]**(2*v-1))*scaled_besselKv.apply(x[non_zero_indices],1-v)
+        elif v>=1:
+            grad_x[non_zero_indices]=-x[non_zero_indices]*scaled_besselKv.apply(x[non_zero_indices],v-1)
+        
+        return grad_out * grad_x, None
+
+
+def matern_kernel(X: torch.Tensor | np.ndarray, 
+                  Y: torch.Tensor | np.ndarray | None, 
+                  theta: torch.Tensor | np.ndarray, 
+                  nu: float = 1.5) -> torch.Tensor:
+    """
+    Computes the Matérn kernel (for nu=1.5) between X and Y.
+
+    Parameters:
+    X (torch.Tensor): Input tensor of shape (n_samples_X, n_features).
+    Y (torch.Tensor): Input tensor of shape (n_samples_Y, n_features) or None.
+    theta: parameter vector (length 2), where:
+        - theta[0] is the scaling parameter (alpha)
+        - theta[1] is the length scale.
+    nu: Smoothness parameter (default is 1.5).
+
+    Returns:
+    torch.Tensor: Kernel matrix of shape (n_samples_X, n_samples_Y).
+    """
+    if not isinstance(theta, torch.Tensor):
+        theta = torch.tensor(theta, dtype=torch.float64)
+
+    alpha = theta[0]
+    length_scale = theta[1]
+
+    # Ensure inputs are tensors
+    if not isinstance(X, torch.Tensor):
+        X = torch.tensor(X, dtype=torch.float64)
+    if Y is None:
+        Y = X  # If Y is None, compute the kernel with X itself
+
+    if not isinstance(Y, torch.Tensor):
+        Y = torch.tensor(Y, dtype=torch.float64)
+
+    # Calculate squared Euclidean distance
+    dist = torch.cdist(X, Y, p=2)*math.sqrt(2*nu) / length_scale  # Normalize by length scale
+
+    # Compute the Matérn kernel for nu = 1.5
+    coeff = (2 ** (1 - nu)) / gamma(nu)
+    kernel_matrix = coeff * scaled_besselKv.apply(dist,nu)
+
+    # Set the diagonal entries to the scaling factor
+    kernel_matrix[torch.isnan(kernel_matrix)] = 0  # Handle NaNs for distance 0 case
+
+    return alpha * kernel_matrix
+
+
+def matern_kernel_factory(nu: float):
+    def matern_kernel_nu(X: torch.Tensor | np.ndarray, 
+                  Y: torch.Tensor | np.ndarray | None, 
+                  theta: torch.Tensor | np.ndarray):
+        return matern_kernel(X,Y,theta,nu)
+    return matern_kernel_nu
