@@ -30,8 +30,8 @@ from joblib import Parallel, delayed
 
 def estimate(r):
     alpha=1
-    length_scale=0.1
-    nu=0.5
+    length_scale=0.063*math.sqrt(3)
+    nu=1.5
     N=10000
     mis_dis=0.02
     l=math.sqrt(2*N)*mis_dis
@@ -58,93 +58,91 @@ def estimate(r):
     # elif nu==1.5:
     #     gpp_estimation = GPPEstimation(dis_data, onedif_kernel, knots, weights)
     # else:
-    matern_kernel_nu=matern_kernel_factory(nu)
-    gpp_estimation = GPPEstimation(dis_data, matern_kernel_nu, knots, weights)
-    
-    
-    beta=torch.tensor([-1,2,3,-2,1],dtype=torch.float64)
-    delta=torch.tensor(0.25,dtype=torch.float64)
-    theta=torch.tensor([alpha,length_scale],dtype=torch.float64)
-    x_true=gpp_estimation.argument2vector_lik(beta,delta,theta)
-    try:
-        mu,Sigma,beta,delta,theta,result=gpp_estimation.get_minimier(x_true)
-        optimal_estimator=(mu,Sigma,beta,delta,theta,result)
-        print(theta)
-        print("global optimization succeed")
-    except Exception:
-        optimal_estimator=(r, "global minimization error")
-        print("global optimization failed")
-    
-    try:
-        mu_list,Sigma_list,beta_list,delta_list,theta_list,_,_=gpp_estimation.get_local_minimizers_parallel(x_true,job_num=1)
-        print("local optimization succeed")
-    except Exception:
-        print("local optimization failed")
-        return (r, "local minimization error")
-    if len(mu_list)==0:
-        print("local optimization failed")
-        return (r, "local minimization error")    
-    
-    mu=mu_list[0]
-    Sigma=Sigma_list[0]
-    beta=beta_list[0]
-    delta=delta_list[0]
-    theta=theta_list[0]
-    num=len(mu_list)
-    if num>1:
-        for j in range(1,num):
-            mu+=mu_list[j]
-            Sigma+=Sigma_list[j]
-            beta+=beta_list[j]
-            delta+=delta_list[j]
-            theta+=theta_list[j]
-    mu=mu/num
-    Sigma=Sigma/num
-    beta=beta/num
-    delta=delta/num
-    theta=theta/num
-    mu_list=[]
-    Sigma_list=[]
-    beta_list=[]
-    delta_list=[]
-    theta_list=[]
-    for j in range(J):
-        mu_list.append(mu)
-        Sigma_list.append(Sigma)
-        beta_list.append(beta)
-        delta_list.append(delta)
-        theta_list.append(theta)
+    nus=np.arange(1.0, 2.1, 0.1)
+    #nus=np.arange(1.4, 1.6, 0.1)
+    estimator_de_op_list=[]
+    for nu in nus:
+        #print(f"nu:{nu}")
+        matern_kernel_nu=matern_kernel_factory(nu)
+        gpp_estimation = GPPEstimation(dis_data, matern_kernel_nu, knots, weights)
+        
+        
+        beta=torch.tensor([-1,2,3,-2,1],dtype=torch.float64)
+        delta=torch.tensor(0.25,dtype=torch.float64)
+        theta=torch.tensor([alpha,length_scale],dtype=torch.float64)
+        x_true=gpp_estimation.argument2vector_lik(beta,delta,theta)
+        try:
+            mu,Sigma,beta,delta,theta,result=gpp_estimation.get_minimier(x_true)
+            optimal_estimator=(beta,delta,theta,result.fun)
+            #print(optimal_estimator)
+            print(f"r:{r},nu:{nu},global optimization succeed")
+        except Exception:
+            optimal_estimator=(r,nu, "global minimization error")
+            print(f"r:{r},nu:{nu},global optimization failed")
+        
+        try:
+            mu_list,Sigma_list,beta_list,delta_list,theta_list,_,_=gpp_estimation.get_local_minimizers_parallel(x_true,job_num=-1)
+            print(f"r:{r},nu:{nu},local optimization succeed")
+        except Exception:
+            print(f"r:{r},nu:{nu},local optimization failed")
+            de_estimator=(r,nu, "local minimization error")
+            break
+        if len(mu_list)==0:
+            print(f"r:{r},nu:{nu},local optimization failed")
+            de_estimator=(r,nu, "local minimization error")
+            break
+        
+        mu=mu_list[0]
+        Sigma=Sigma_list[0]
+        beta=beta_list[0]
+        delta=delta_list[0]
+        theta=theta_list[0]
+        num=len(mu_list)
+        if num>1:
+            for j in range(1,num):
+                mu+=mu_list[j]
+                Sigma+=Sigma_list[j]
+                beta+=beta_list[j]
+                delta+=delta_list[j]
+                theta+=theta_list[j]
+        mu=mu/num
+        Sigma=Sigma/num
+        beta=beta/num
+        delta=delta/num
+        theta=theta/num
+        mu_list=[]
+        Sigma_list=[]
+        beta_list=[]
+        delta_list=[]
+        theta_list=[]
+        for j in range(J):
+            mu_list.append(mu)
+            Sigma_list.append(Sigma)
+            beta_list.append(beta)
+            delta_list.append(delta)
+            theta_list.append(theta)
 
 
-    T=100
-    try:
-        de_estimators=gpp_estimation.de_optimize_stage2(mu_list,Sigma_list,beta_list,delta_list,theta_list,T=T,weights_round=6)
-        print("dis optimization succeed")
-    except Exception:
-        print("dis optimization failed")
-        return (r, "distributed minimization error")
-  
-    return de_estimators,optimal_estimator
+        T=100
+        try:
+            de_estimator=gpp_estimation.de_optimize_stage2(mu_list,Sigma_list,beta_list,delta_list,theta_list,T=T,weights_round=6)
+            de_estimator=(de_estimator[2],de_estimator[3],de_estimator[4],de_estimator[6])
+            #print(de_estimator)
+            #gpp_estimation.local_value()
+            print(f"r:{r},nu:{nu},dis optimization succeed")
+        except Exception:
+            print(f"r:{r},nu:{nu},dis optimization failed")
+            de_estimator=(r,nu, "dis minimization error")
+        estimator_de_op_list.append((de_estimator,optimal_estimator))
+            
+    return estimator_de_op_list
 
-estimate(0)
+#estimate(0)
 
-# rs=[r for r in range(100)]
-
-    
-# # results=[]
-# # for r in rs:
-# #     print(f"r:{r}")
-# #     result=estimate(r)
-# #     results.append(result)
-# # with open(f'/home/shij0d/Documents/Dis_Spatial/expriements/decentralized/Unequal_sample_size/res.pkl', 'wb') as f:
-# #     pickle.dump(results, f)
-# results = [None] * len(rs)
-# # Parallel execution for the list of rs, while maintaining the index (i)
-# results = Parallel(n_jobs=-1)(
-#     delayed(lambda i, r: (i, estimate(r)))(i, r) for i, r in enumerate(rs)
-# )
-# # Assign results based on the index to maintain order
-# for i, result in results:
-#     results[i] = result
-# with open(f'/home/shij0d/documents/dis_LR_spatial/expriements/decentralized/Unequal_sample_size/more_irregular/res_memeff.pkl', 'wb') as f:
-#     pickle.dump(results, f)
+rs=[r for r in range(100)]
+# Parallel execution for the list of rs, while maintaining the index (i)
+results = Parallel(n_jobs=-1)(
+    delayed(estimate(r))(r) for  r in rs
+)
+with open(f'/home/shij0d/documents/dis_LR_spatial/expriements/decentralized/estimating_nu/res_memeff.pkl', 'wb') as f:
+    pickle.dump(results, f)

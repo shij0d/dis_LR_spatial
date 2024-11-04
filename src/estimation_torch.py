@@ -1056,20 +1056,20 @@ class GPPEstimation:
                 y_delta_Mstack[:,j]=torch.trace(local_B.T@local_B@(Sigma_list[j]+mu_list[j]@mu_list[j].T))+2*local_erorrV.T@local_B@mu_list[j]+local_erorrV.T@local_erorrV
             return y_delta_Mstack
         
-        # def y_value_f(mu_list,Sigma_list,beta_list,delta_list,theta_list):
-        #     y_value_M=torch.zeros((1,1),dtype=torch.double)
-        #     for j in range(self.J):
-        #         local_value=self.local_value(j,mu_list[j],Sigma_list[j],beta_list[j],delta_list[j],theta_list[j])
-        #         y_value_M+=local_value.reshape(-1,1)
-        #     y_value_M=y_value_M/self.J
-        #     return y_value_M
-        # def com_value_f(mu_list,Sigma_list,theta_list):
-        #     com_value_M=torch.zeros((1,1),dtype=torch.double)
-        #     for j in range(self.J):
-        #         com_value=self.com_value(mu_list[j],Sigma_list[j],theta_list[j])            
-        #         com_value_M+=com_value.reshape(-1,1)
-        #     com_value_M=com_value_M/self.J
-        #     return com_value_M
+        def y_value_f(mu_list,Sigma_list,beta_list,delta_list,theta_list):
+            y_value_M=torch.zeros((1,1),dtype=torch.double)
+            for j in range(self.J):
+                local_value=self.local_value(j,mu_list[j],Sigma_list[j],beta_list[j],delta_list[j],theta_list[j])
+                y_value_M+=local_value.reshape(-1,1)
+            y_value_M=y_value_M/self.J
+            return y_value_M
+        def com_value_f(mu_list,Sigma_list,theta_list):
+            com_value_M=torch.zeros((1,1),dtype=torch.double)
+            for j in range(self.J):
+                com_value=self.com_value(mu_list[j],Sigma_list[j],theta_list[j])            
+                com_value_M+=com_value.reshape(-1,1)
+            com_value_M=com_value_M/self.J
+            return com_value_M
         
         
 
@@ -1437,10 +1437,11 @@ class GPPEstimation:
                 grad_theta_Mstack_p=grad_theta_Mstack
             theta_lists.append(theta_list)
             s_list.append(s)
+        
+        f_value=y_value_f(mu_list,Sigma_list,beta_lists[T],delta_lists[T],theta_lists[T])*self.J+com_value_f(mu_list,Sigma_list,theta_lists[T])
+        print(f_value)
 
-
-        return mu_list,Sigma_list,beta_lists,delta_lists,theta_lists,s_list
-
+        return mu_list,Sigma_list,beta_lists,delta_lists,theta_lists,s_list,f_value
 
     def ce_optimize_stage2(self,mu:torch.Tensor,Sigma:torch.Tensor,beta:torch.Tensor,delta:torch.Tensor,theta:torch.Tensor,T:int,job_num,seed=2024,thread_num=None,backend='threading'):
         torch.manual_seed(seed)
