@@ -18,7 +18,7 @@ import time
 torch.autograd.set_detect_anomaly(True)
 
 class GPPPrediction:
-    def __init__(self, location: torch.Tensor, kernel: callable, knots: torch.Tensor,X: torch.Tensor, mu: torch.Tensor,Sigma: torch.Tensor,beta: torch.Tensor,delta: torch.Tensor,theta: torch.Tensor) -> None:
+    def __init__(self, location: torch.Tensor, kernel: callable, knots: torch.Tensor,X: torch.Tensor|None, mu: torch.Tensor,Sigma: torch.Tensor,beta: torch.Tensor|None,delta: torch.Tensor,theta: torch.Tensor) -> None:
         """
         Initialize the class with locations, a kernel function, knots, and parameters.
         """
@@ -38,7 +38,10 @@ class GPPPrediction:
         
     def predict(self):
         B=self.kernel(self.location,self.knots,self.theta)@torch.linalg.inv(self.kernel(self.knots,self.knots,theta=self.theta))
-        mean_pred=torch.tensor(self.X)@self.beta+B@self.mu
+        if self.X==None or self.beta==None:
+            mean_pred=B@self.mu
+        else:
+            mean_pred=torch.tensor(self.X)@self.beta+B@self.mu
         N_pre=self.location.shape[0]
         cov_pred=B@self.Sigma@B.T+1/(self.delta**2)*torch.eye(N_pre)
         

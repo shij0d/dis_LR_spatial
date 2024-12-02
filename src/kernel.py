@@ -134,7 +134,7 @@ def Matern_2_5_kernel(X:torch.Tensor|np.ndarray, Y:torch.Tensor|np.ndarray|None,
         
         return K
    
-def exponential_kernel(X:torch.Tensor|np.ndarray, Y:torch.Tensor|np.ndarray|None, theta:torch.Tensor|np.ndarray):
+def exponential_kernel(X:torch.Tensor|np.ndarray, Y:torch.Tensor|np.ndarray|None, theta:torch.Tensor|np.ndarray,type="Euclidean"):
         """
         Computes the exponential kernel between X and Y.
         
@@ -146,27 +146,54 @@ def exponential_kernel(X:torch.Tensor|np.ndarray, Y:torch.Tensor|np.ndarray|None
         Returns:
         torch.Tensor: Kernel matrix of shape (n_samples_X, n_samples_Y).
         """
+        
         if not isinstance(theta,torch.Tensor):
             theta=torch.tensor(theta)
         alpha = theta[0]
         length_scale = theta[1]
-        # Ensure inputs are tensors
-        if not isinstance(X,torch.Tensor):
-            X = torch.tensor(X, dtype=torch.float64)
-        if Y is None:
-            dist= torch.pdist(X, p=2) # Calculate the squared Euclidean distance
-        else:
-            if not isinstance(Y,torch.Tensor):
-               Y = torch.tensor(Y, dtype=torch.float64)
-            dist= torch.cdist(X, Y, p=2)# Calculate the squared Euclidean distance
-         
+        
+        if type=="Euclidean":
+            # Ensure inputs are tensors
+            if not isinstance(X,torch.Tensor):
+                X = torch.tensor(X, dtype=torch.float64)
+            if Y is None:
+                dist= torch.pdist(X, p=2) # Calculate the squared Euclidean distance
+            else:
+                if not isinstance(Y,torch.Tensor):
+                    Y = torch.tensor(Y, dtype=torch.float64)
+                dist= torch.cdist(X, Y, p=2)# Calculate the squared Euclidean distance
+        elif type=="chordal":
+            if not isinstance(X, torch.Tensor):
+                X = torch.tensor(X, dtype=torch.float64)
+            if Y is not None and not isinstance(Y, torch.Tensor):
+                Y = torch.tensor(Y, dtype=torch.float64)
+            # Convert lat/lon to radians
+            X_rad = torch.deg2rad(X)
+            if Y is not None:
+                Y_rad = torch.deg2rad(Y)
+            else:
+                Y_rad = X_rad
+            def lat_lon_to_cartesian(lat_lon, radius):
+                lat, lon = lat_lon[:, 0], lat_lon[:, 1]
+                x = radius * torch.cos(lat) * torch.cos(lon)
+                y = radius * torch.cos(lat) * torch.sin(lon)
+                z = radius * torch.sin(lat)
+                return torch.stack([x, y, z], dim=1)
+            X_cart = lat_lon_to_cartesian(X_rad, 1)
+            Y_cart = lat_lon_to_cartesian(Y_rad, 1)
+            if Y is None:
+                dist = torch.cdist(X_cart, X_cart, p=2)  # Pairwise Euclidean distance in Cartesian space
+            else:
+                dist = torch.cdist(X_cart, Y_cart, p=2)
+
+
         dist_scaled=dist/length_scale        
         # Compute the kernel
         K = alpha * torch.exp(-dist_scaled)
         
         return K
 
-def onedif_kernel(X:torch.Tensor|np.ndarray, Y:torch.Tensor|np.ndarray|None, theta:torch.Tensor|np.ndarray):
+def onedif_kernel(X:torch.Tensor|np.ndarray, Y:torch.Tensor|np.ndarray|None, theta:torch.Tensor|np.ndarray,type="Euclidean"):
         """
         Computes the matern kernel when nu=1.5 between X and Y.
         
@@ -183,14 +210,39 @@ def onedif_kernel(X:torch.Tensor|np.ndarray, Y:torch.Tensor|np.ndarray|None, the
         alpha = theta[0]
         length_scale = theta[1]
         # Ensure inputs are tensors
-        if not isinstance(X,torch.Tensor):
-            X = torch.tensor(X, dtype=torch.float64)
-        if Y is None:
-            dist= torch.pdist(X, p=2) # Calculate the squared Euclidean distance
-        else:
-            if not isinstance(Y,torch.Tensor):
-               Y = torch.tensor(Y, dtype=torch.float64)
-            dist= torch.cdist(X, Y, p=2)# Calculate the squared Euclidean distance
+        if type=="Euclidean":
+            # Ensure inputs are tensors
+            if not isinstance(X,torch.Tensor):
+                X = torch.tensor(X, dtype=torch.float64)
+            if Y is None:
+                dist= torch.pdist(X, p=2) # Calculate the squared Euclidean distance
+            else:
+                if not isinstance(Y,torch.Tensor):
+                    Y = torch.tensor(Y, dtype=torch.float64)
+                dist= torch.cdist(X, Y, p=2)# Calculate the squared Euclidean distance
+        elif type=="chordal":
+            if not isinstance(X, torch.Tensor):
+                X = torch.tensor(X, dtype=torch.float64)
+            if Y is not None and not isinstance(Y, torch.Tensor):
+                Y = torch.tensor(Y, dtype=torch.float64)
+            # Convert lat/lon to radians
+            X_rad = torch.deg2rad(X)
+            if Y is not None:
+                Y_rad = torch.deg2rad(Y)
+            else:
+                Y_rad = X_rad
+            def lat_lon_to_cartesian(lat_lon, radius):
+                lat, lon = lat_lon[:, 0], lat_lon[:, 1]
+                x = radius * torch.cos(lat) * torch.cos(lon)
+                y = radius * torch.cos(lat) * torch.sin(lon)
+                z = radius * torch.sin(lat)
+                return torch.stack([x, y, z], dim=1)
+            X_cart = lat_lon_to_cartesian(X_rad, 1)
+            Y_cart = lat_lon_to_cartesian(Y_rad, 1)
+            if Y is None:
+                dist = torch.cdist(X_cart, X_cart, p=2)  # Pairwise Euclidean distance in Cartesian space
+            else:
+                dist = torch.cdist(X_cart, Y_cart, p=2)
          
         dist_scaled=dist*math.sqrt(3)/length_scale        
         # Compute the kernel
@@ -294,7 +346,7 @@ class scaled_besselKv(torch.autograd.Function):
 def matern_kernel(X: torch.Tensor | np.ndarray, 
                   Y: torch.Tensor | np.ndarray | None, 
                   theta: torch.Tensor | np.ndarray, 
-                  nu: float = 1.5) -> torch.Tensor:
+                  nu: float = 1.5,type="Euclidean") -> torch.Tensor:
     """
     Computes the Matérn kernel (for nu=1.5) between X and Y.
 
@@ -314,22 +366,51 @@ def matern_kernel(X: torch.Tensor | np.ndarray,
 
     alpha = theta[0]
     length_scale = theta[1]
-
+    
+    if type=="Euclidean":
+            # Ensure inputs are tensors
+            if not isinstance(X,torch.Tensor):
+                X = torch.tensor(X, dtype=torch.float64)
+            if Y is None:
+                dist= torch.pdist(X, p=2) # Calculate the squared Euclidean distance
+            else:
+                if not isinstance(Y,torch.Tensor):
+                    Y = torch.tensor(Y, dtype=torch.float64)
+                dist= torch.cdist(X, Y, p=2)# Calculate the squared Euclidean distance
+    elif type=="chordal":
+            if not isinstance(X, torch.Tensor):
+                X = torch.tensor(X, dtype=torch.float64)
+            if Y is not None and not isinstance(Y, torch.Tensor):
+                Y = torch.tensor(Y, dtype=torch.float64)
+            # Convert lat/lon to radians
+            X_rad = torch.deg2rad(X)
+            if Y is not None:
+                Y_rad = torch.deg2rad(Y)
+            else:
+                Y_rad = X_rad
+            def lat_lon_to_cartesian(lat_lon, radius):
+                lat, lon = lat_lon[:, 0], lat_lon[:, 1]
+                x = radius * torch.cos(lat) * torch.cos(lon)
+                y = radius * torch.cos(lat) * torch.sin(lon)
+                z = radius * torch.sin(lat)
+                return torch.stack([x, y, z], dim=1)
+            X_cart = lat_lon_to_cartesian(X_rad, 1)
+            Y_cart = lat_lon_to_cartesian(Y_rad, 1)
+            if Y is None:
+                dist = torch.cdist(X_cart, X_cart, p=2)  # Pairwise Euclidean distance in Cartesian space
+            else:
+                dist = torch.cdist(X_cart, Y_cart, p=2)
+        
     # Ensure inputs are tensors
-    if not isinstance(X, torch.Tensor):
-        X = torch.tensor(X, dtype=torch.float64)
-    if Y is None:
-        Y = X  # If Y is None, compute the kernel with X itself
-
-    if not isinstance(Y, torch.Tensor):
-        Y = torch.tensor(Y, dtype=torch.float64)
-
+    
     # Calculate squared Euclidean distance
-    dist = torch.cdist(X, Y, p=2)*math.sqrt(2*nu) / length_scale  # Normalize by length scale
-
+    dist = torch.cdist(X, Y, p=2)
+    
+    dist_scaled=dist*math.sqrt(2*nu) / length_scale 
+    
     # Compute the Matérn kernel for nu = 1.5
     coeff = (2 ** (1 - nu)) / gamma(nu)
-    kernel_matrix = coeff * scaled_besselKv.apply(dist,nu)
+    kernel_matrix = coeff * scaled_besselKv.apply(dist_scaled,nu)
 
     # Set the diagonal entries to the scaling factor
     kernel_matrix[torch.isnan(kernel_matrix)] = 0  # Handle NaNs for distance 0 case
@@ -337,7 +418,7 @@ def matern_kernel(X: torch.Tensor | np.ndarray,
     return alpha * kernel_matrix
 
 
-def matern_kernel_factory(nu: float):
+def matern_kernel_factory(nu: float,type):
     def matern_kernel_nu(X: torch.Tensor | np.ndarray, 
                   Y: torch.Tensor | np.ndarray | None, 
                   theta: torch.Tensor | np.ndarray):

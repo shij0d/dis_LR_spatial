@@ -345,22 +345,23 @@ class GPPSampleGenerator:
                 dis_data.append(partition_data)
         
         return dis_data
-    def visual_locations(dis_data:list[np.ndarray],save_file=None):
+    def visual_locations(dis_data:list[np.ndarray],save_file=None,title=None):
         J=len(dis_data)
         colors = plt.cm.get_cmap('tab10', J)  # Choose a colormap for the partitions
         plt.figure(figsize=(8, 6))
         for i, partition in enumerate(dis_data):
             partition_locations = partition[:, :2]  # Only the 2D locations
             plt.scatter(partition_locations[:, 0], partition_locations[:, 1], color=colors(i),alpha=0.5,s=10)
-        plt.title('Partitioned Locations')
-        plt.xlabel('X Coordinate')
-        plt.ylabel('Y Coordinate')
+        plt.title(title,fontsize=20)
+        plt.xlabel('X Coordinate',fontsize=18)
+        plt.ylabel('Y Coordinate',fontsize=18)
+        plt.xticks(fontsize=18)
+        plt.yticks(fontsize=18)
         plt.legend()
         plt.grid(True)
-        plt.show()
         if save_file!=None:
             plt.savefig(save_file)
-    
+        plt.show()
     
 
         
