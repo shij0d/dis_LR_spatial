@@ -1,13 +1,19 @@
 from __future__ import annotations
 import numpy as np
+import random
+from src.kernel import Kernel_with_Grad, Matern_with_Grad
+from sklearn.gaussian_process.kernels import Matern
 import math
 import numpy as np
+import random
 from typing import Callable, Any, List
 from src.utils import softplus_torch, inv_softplus_torch, replace_negative_eigenvalues_with_zero, softplus_d
 from scipy.optimize import minimize
 import torch
-from torch.autograd.functional import hessian
+from torch.autograd.functional import hessian, jacobian
+import torch.multiprocessing as mp
 from joblib import Parallel, delayed
+import time
 
 torch.autograd.set_detect_anomaly(True)
 
@@ -641,7 +647,7 @@ class GPPEstimation:
 
         return (mu, Sigma, beta, delta, theta, result)
 
-    def get_local_minimizers_parallel(self, x0, job_num, thread_num=None):
+    def get_local_minimizers_parallel(self, x0, job_num=-1, thread_num=None):
         mu_list = []
         Sigma_list = []
         beta_list = []
@@ -1039,17 +1045,17 @@ class GPPEstimation:
             for j in range(self.J):
                 y_XTX_Mstack[:, :, j] = results[j]
 
-        def y_mu_f_parallel(beta_list, theta_list):
+        def y_mu_f_parallel(delta_list, beta_list, theta_list):
             y_mu_Mstack = torch.zeros((self.m, self.J), dtype=torch.double)
 
-            def compute_j(j, beta_j, theta_j):
+            def compute_j(j, delta_j, beta_j, theta_j):
                 local_B = local_B_f(j, theta_j)
                 local_errorV = local_erorrV_f(j, beta_j)
-                return -local_B.T @ local_errorV
+                return -delta_j*local_B.T @ local_errorV
 
             # Parallel execution for each j
-            results = Parallel(n_jobs=-1)(delayed(compute_j)(j,
-                                                             beta_list[j], theta_list[j]) for j in range(self.J))
+            results = Parallel(n_jobs=-1)(delayed(compute_j)(
+                j, delta_list[j], beta_list[j], theta_list[j]) for j in range(self.J))
 
             # Stack the results
             for j in range(self.J):
@@ -1057,23 +1063,41 @@ class GPPEstimation:
 
             return y_mu_Mstack
 
-        def y_Sigma_f_parallel(theta_list):
+        def y_Sigma_f_parallel(delta_list, theta_list):
             y_Sigma_Mstack = torch.zeros(
                 (self.m, self.m, self.J), dtype=torch.double)
 
-            def compute_j(j, theta_j):
+            def compute_j(j, delta_j, theta_j):
                 local_B = local_B_f(j, theta_j)
-                return local_B.T @ local_B
+                return delta_j*local_B.T @ local_B
 
             # Parallel execution for each j
-            results = Parallel(n_jobs=-1)(delayed(compute_j)
-                                          (j, theta_list[j]) for j in range(self.J))
+            results = Parallel(n_jobs=-1)(delayed(compute_j)(j,
+                                                             delta_list[j], theta_list[j]) for j in range(self.J))
 
             # Stack the results
             for j in range(self.J):
                 y_Sigma_Mstack[:, :, j] = results[j]
 
             return y_Sigma_Mstack
+
+        def y_K_f_parallel(theta_list):
+            y_K_Mstack = torch.zeros(
+                (self.m, self.m, self.J), dtype=torch.double)
+
+            def compute_j(theta_j):
+                K_temp = K_f(theta_j)
+                return K_temp
+
+            # Parallel execution for each j
+            results = Parallel(n_jobs=-1)(delayed(compute_j)
+                                          (theta_list[j]) for j in range(self.J))
+
+            # Stack the results
+            for j in range(self.J):
+                y_K_Mstack[:, :, j] = results[j]
+
+            return y_K_Mstack
 
         if self.p > 0:
             def y_beta_f_parallel(mu_list, theta_list):
@@ -1283,35 +1307,38 @@ class GPPEstimation:
             # mu and Sigma
             if t == 0:
                 y_mu_Mstack = torch.tensordot(y_mu_f_parallel(
-                    beta_lists[0], theta_lists[0]), self.weights, dims=1)
-                y_Sigma_Mstack = torch.tensordot(
-                    y_Sigma_f_parallel(theta_lists[0]), self.weights, dims=1)
+                    delta_lists[0], beta_lists[0], theta_lists[0]), self.weights, dims=1)
+                y_Sigma_Mstack = torch.tensordot(y_Sigma_f_parallel(
+                    delta_lists[0], theta_lists[0]), self.weights, dims=1)
+                y_K_Mstack = torch.tensordot(y_K_f_parallel(
+                    theta_lists[0]), self.weights, dims=1)
             else:
-                y_mu_Mstack = torch.tensordot(y_mu_Mstack+y_mu_f_parallel(beta_lists[t], theta_lists[t])-y_mu_f_parallel(
-                    beta_lists[t-1], theta_lists[t-1]), self.weights, dims=1)
+                y_mu_Mstack = torch.tensordot(y_mu_Mstack+y_mu_f_parallel(delta_lists[t], beta_lists[t], theta_lists[t])-y_mu_f_parallel(
+                    delta_lists[t-1], beta_lists[t-1], theta_lists[t-1]), self.weights, dims=1)
                 y_Sigma_Mstack = torch.tensordot(y_Sigma_Mstack+y_Sigma_f_parallel(
-                    theta_lists[t])-y_Sigma_f_parallel(theta_lists[t-1]), self.weights, dims=1)
+                    delta_lists[t], theta_lists[t])-y_Sigma_f_parallel(delta_lists[t-1], theta_lists[t-1]), self.weights, dims=1)
+                y_K_Mstack = torch.tensordot(y_K_Mstack+y_K_f_parallel(
+                    theta_lists[t])-y_K_f_parallel(theta_lists[t-1]), self.weights, dims=1)
 
-            def compute_mu_sigma(j, theta_j, delta_j):
+            def compute_mu_sigma(j):
                 y_Sigma = y_Sigma_Mstack[:, :, j]
                 y_Sigma = replace_negative_eigenvalues_with_zero(
                     y_Sigma)  # Ensure positive definiteness
                 y_mu = y_mu_Mstack[:, j].unsqueeze(1)
 
-                # Compute K and its inverse
-                K = K_f(theta_j)
+                # K and its inverse
+                K = y_K_Mstack[:,:, j]
+                K = replace_negative_eigenvalues_with_zero(
+                    K)
                 invK = torch.linalg.inv(K)
-
                 # Compute Sigma and mu
-                Sigma = torch.linalg.inv(delta_j * self.J * y_Sigma + invK)
-                mu = torch.linalg.inv(
-                    delta_j * y_Sigma + invK / self.J) @ (delta_j * y_mu)
+                Sigma = torch.linalg.inv(self.J * y_Sigma + invK)
+                mu = torch.linalg.inv(y_Sigma + invK / self.J) @ (y_mu)
 
                 return mu, Sigma
 
             # Parallel execution for all j
-            results = Parallel(n_jobs=-1)(delayed(compute_mu_sigma)(j,
-                                                                    theta_lists[t][j], delta_lists[t][j]) for j in range(self.J))
+            results = Parallel(n_jobs=-1)(delayed(compute_mu_sigma)(j) for j in range(self.J))
 
             # Unpack the results
             mu_list, Sigma_list = zip(*results)

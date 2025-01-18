@@ -26,15 +26,15 @@ from joblib import Parallel, delayed
 
 #%%
 
-
+#beta:[-1.01605587  2.01384319  3.01852677 -2.04447403  1.01076155],delta:0.2530022707264758,theta:[1.16931021 0.10380016]
 
 def estimate(r,length_scale,nu):
     alpha=1
     #length_scales=[0.3,0.1,0.03]
     #nu=0.5
     N=10000
-    mis_dis=0.02
-    l=math.sqrt(2*N)*mis_dis
+    mis_dis=0.01
+    l=math.sqrt(2*N)*mis_dis*1.5
     extent=-l/2,l/2,-l/2,l/2,
     coefficients=(-1,2,3,-2,1)
     noise_level=2
@@ -79,7 +79,7 @@ def estimate(r,length_scale,nu):
   
     try:
         
-        mu_list,Sigma_list,beta_list,delta_list,theta_list,_,_=gpp_estimation.get_local_minimizers_parallel(x_true,job_num=-1)
+        mu_list,Sigma_list,beta_list,delta_list,theta_list,_,_=gpp_estimation.get_local_minimizers_parallel(x_true)
 
         print("local optimization succeed")
     except Exception:
@@ -122,7 +122,7 @@ def estimate(r,length_scale,nu):
     
    
     T=100
-    de_estimators=gpp_estimation.de_optimize_stage2(mu_list,Sigma_list,beta_list,delta_list,theta_list,T=T,weights_round=6)
+   
     try:
         de_estimators=gpp_estimation.de_optimize_stage2(mu_list,Sigma_list,beta_list,delta_list,theta_list,T=T,weights_round=6)
         print("dis optimization succeed")
@@ -130,7 +130,10 @@ def estimate(r,length_scale,nu):
         print("dis optimization failed")
         return (r, "distributed minimization error")
   
-    return de_estimators,optimal_estimator
+    return optimal_estimator,de_estimators
+
+
+num_cores = multiprocessing.cpu_count()
 nu_lengths=[(0.5,0.033),(0.5,0.1),(0.5,0.234),(1.5,0.021*math.sqrt(3)),(1.5,0.063*math.sqrt(3)),(1.5,0.148*math.sqrt(3))]
 nu_lengths=[nu_lengths[1]]
 rs=[r for r in range(100)]
@@ -145,15 +148,13 @@ for nu_length in nu_lengths:
         length_scale_act=length_scale
     print(f"nu:{nu},length_scale:{length_scale_act}")
     estimate_l=partial(estimate,length_scale=length_scale,nu=nu)
-    
     results=[]
     for r in rs:
         print(f"r:{r}")
         result=estimate_l(r)
-    #     results.append(result)
-    # with open(f'/home/shij0d/Documents/Dis_Spatial/expriements/decentralized/varying_parameter/mindis_0.01/nu_{nu}_length_scale_{length_scale_act}.pkl', 'wb') as f:
+        results.append(result)
+    # with open(f'/home/shij0d/Documents/Dis_Spatial/expriements/decentralized/varying_parameter/mindis_0.01/temp.pkl', 'wb') as f:
     #     pickle.dump(results, f)
-    
     
     # results = [None] * len(rs)
     # # Parallel execution for the list of rs, while maintaining the index (i)
@@ -163,7 +164,33 @@ for nu_length in nu_lengths:
     # # Assign results based on the index to maintain order
     # for i, result in results:
     #     results[i] = result
-    # with open(f'/home/shij0d/Documents/Dis_Spatial/expriements/decentralized/varying_parameter/more_irregular/nu_{nu}_length_scale_{length_scale_act}_memeff.pkl', 'wb') as f:
+    # with open(f'/home/shij0d/Documents/Dis_Spatial/expriements/decentralized/varying_parameter/mindis_0.01_irregular/nu_{nu}_length_scale_{length_scale_act}_weights_round_{6}.pkl', 'wb') as f:
     #     pickle.dump(results, f)
 
-    
+   
+# %%
+r=0
+J=10
+beta=torch.tensor([-1,2,3,-2,1],dtype=torch.float64)
+delta=torch.tensor(0.25,dtype=torch.float64)
+theta=torch.tensor([0.5,0.1],dtype=torch.float64)
+param_rel_error=np.zeros(shape=(100,))
+
+for t in range(100):
+    rel_error=torch.zeros((J,))
+    for j in range(J):
+        rel_dif_beta=torch.abs(results[r][1][2][t][j]-results[r][0][2]).squeeze()/torch.abs(beta)
+        rel_dif_delta=torch.abs(results[r][1][3][t][j]-results[r][0][3]).squeeze()/torch.abs(delta)
+        rel_dif_theta=torch.abs(results[r][1][4][t][j]-results[r][0][4]).squeeze()/torch.abs(theta)
+        rel_error[j]=torch.sqrt(torch.square(torch.norm(rel_dif_beta))+torch.square(torch.norm(rel_dif_delta))+torch.square(torch.norm(rel_dif_theta)))
+    param_rel_error[t]=rel_error.max().numpy()
+param_rel_error=np.log10(param_rel_error)
+plt.plot(param_rel_error)
+plt.title("Parameter Relative Error for 9th Row")
+plt.xlabel("Index")
+plt.ylabel("Relative Error")
+plt.grid(True)
+plt.show()
+
+
+# %%
