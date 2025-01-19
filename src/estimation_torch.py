@@ -7,6 +7,7 @@ from src.utils import softplus_torch, inv_softplus_torch, replace_negative_eigen
 from scipy.optimize import minimize
 import torch
 from torch.autograd.functional import hessian
+from torch.autograd import grad
 from joblib import Parallel, delayed
 
 torch.autograd.set_detect_anomaly(True)
@@ -462,7 +463,7 @@ class GPPEstimation:
 
     def local_neg_log_lik_wrapper(self, j, requires_grad=True):
         """
-        the negative local log likelihood function for the low rank model 
+        the negative local log likelihood function for the low rank model
         """
 
         data = self.dis_data[j]
@@ -499,7 +500,7 @@ class GPPEstimation:
 
     def neg_log_lik_wrapper(self, requires_grad=True):
         """
-        the negative local log likelihood function for the low rank model 
+        the negative local log likelihood function for the low rank model
         """
         local_locs_list = []
         local_z_list = []
@@ -1911,3 +1912,140 @@ class GPPEstimation:
             s_list.append(s)
 
         return mu, Sigma, beta_list, delta_list, theta_list, s_list
+
+    def ce_asy_variance(self, beta: torch.Tensor, delta: torch.Tensor, theta: torch.Tensor, job_num, seed=2024, thread_num=None, backend='threading',method='autodif'):
+        
+        if method=="autodif":
+            return self.ce_asy_variance_autodif(beta,delta,theta,job_num,seed,thread_num,backend)
+        else:
+            return self.ce_asy_variance_explicit(beta,delta,theta,job_num,seed,thread_num,backend)
+    def ce_asy_variance_autodif(self, beta: torch.Tensor, delta: torch.Tensor, theta: torch.Tensor, job_num, seed=2024, thread_num=None, backend='threading'):
+        # for beta
+        torch.manual_seed(seed)
+        if thread_num != None:
+            torch.set_num_threads(thread_num)
+        theta = theta.clone().detach().requires_grad_(True)
+        K = self.kernel(self.knots, self.knots, theta)
+        invK = torch.linalg.inv(K)
+
+        def compute_j(j):
+            local_data = self.dis_data[j]
+            local_locs = local_data[:, :2]
+            local_z = local_data[:, 2].reshape(-1, 1)
+            local_X = local_data[:, 3:]
+            local_size = local_data.shape[0]
+            local_errorv = local_X@beta-local_z
+            local_B = self.kernel(local_locs, self.knots, theta) @ invK
+            local_XTX = local_X.T @ local_X
+            local_BTB = local_B.T @ local_B
+            local_XTB = local_X.T @ local_B
+            local_errorvTB = local_errorv.T@local_B
+            local_errorvsquare = local_errorv.T@local_errorv
+            return (local_XTX, local_BTB, local_XTB, local_size, local_errorvTB, local_errorvsquare)
+        results = Parallel(n_jobs=job_num, backend=backend)(
+            delayed(compute_j)(j) for j in range(self.J))
+        XTX = torch.zeros((self.p, self.p), dtype=torch.double)
+        BTB = torch.zeros((self.m, self.m), dtype=torch.double)
+        XTB = torch.zeros((self.p, self.m), dtype=torch.double)
+        size = 0
+        errorvTB = torch.zeros((1, self.m), dtype=torch.double)
+        errorvsquare = 0
+        for j in range(self.J):
+            result_j = results[j]
+            XTX += result_j[0]
+            BTB += result_j[1]
+            XTB += result_j[2]
+            size += result_j[3]
+            errorvTB += result_j[4]
+            errorvsquare += result_j[5]
+        A = invK+delta*BTB
+        invA = torch.linalg.inv(A)
+        V_beta = (delta*XTX-(delta**2)*XTB@invA@XTB.T)/size
+        V_delta_1 = (delta**2)*size
+        V_delta_2 = -2*(delta**3)*torch.trace(invA@BTB)
+        V_delta_3 = (delta**4)*torch.trace(invA@BTB@invA@BTB)
+        V_delta = (V_delta_1+V_delta_2+V_delta_3)/(2*(delta**4)*size)
+        logd = -size*torch.log(delta)+torch.logdet(K)+torch.logdet(A)
+        quad = errorvsquare-(delta**2)*errorvTB@invA@errorvTB.T
+        neglik = (logd+quad)/2
+
+        gradients = grad(neglik, theta, create_graph=True)[0]  # First derivative
+        hessian = torch.zeros((len(theta), len(theta)),dtype=torch.double)  # Initialize Hessian
+
+        for i in range(len(theta)):
+            second_grad = grad(gradients[i], theta, retain_graph=True)[0]  # Second derivative
+            hessian[i, :] = second_grad
+        V_theta = hessian/self.m
+
+        return (V_beta, V_delta, V_theta)
+    def ce_asy_variance_explicit(self, beta: torch.Tensor, delta: torch.Tensor, theta: torch.Tensor, job_num, seed=2024, thread_num=None, backend='threading'):
+        #uncomplete
+        torch.manual_seed(seed)
+        if thread_num != None:
+            torch.set_num_threads(thread_num)
+        theta = theta.clone().detach().requires_grad_(True)
+        K = self.kernel(self.knots, self.knots, theta)
+        gradient = []
+        for i in range(K.shape[0]):
+            for j in range(K.shape[1]):
+                grad_element = torch.autograd.grad(K[i, j], theta, retain_graph=True)[0]
+                gradient.append(grad_element)
+        Kg = torch.stack(gradient).view(K.shape + theta.shape) #Row-major order
+        
+        invK = torch.linalg.inv(K)
+
+        def compute_j(j):
+            local_data = self.dis_data[j]
+            local_locs = local_data[:, :2]
+            local_z = local_data[:, 2].reshape(-1, 1)
+            local_X = local_data[:, 3:]
+            local_size = local_data.shape[0]
+            local_errorv = local_X@beta-local_z
+            local_B = self.kernel(local_locs, self.knots, theta) @ invK
+            gradient = []
+            for i in range(local_B.shape[0]):
+                for l in range(local_B.shape[1]):
+                    grad_element = torch.autograd.grad(local_B[i, l], theta, retain_graph=True)[0]
+                    gradient.append(grad_element)
+            local_Bg=torch.stack(gradient).view(local_B.shape + theta.shape)
+            local_XTX = local_X.T @ local_X
+            local_BTB = local_B.T @ local_B
+            local_XTB = local_X.T @ local_B
+            local_BTBg= torch.zeros(self.m,self.m,len(theta))
+            local_BgTBg= torch.zeros(self.m,self.m,len(theta))
+            for l in range(len(theta)):
+                local_BTBg[:,:,l]=local_B.T @ local_Bg[:,:,l]
+                local_BgTBg[:,:,l]=local_Bg.T @ local_Bg[:,:,l]
+            return (local_XTX, local_BTB, local_XTB, local_size, local_BTBg, local_BgTBg)
+        results = Parallel(n_jobs=job_num, backend=backend)(
+            delayed(compute_j)(j) for j in range(self.J))
+        XTX = torch.zeros((self.p, self.p), dtype=torch.double)
+        BTB = torch.zeros((self.m, self.m), dtype=torch.double)
+        XTB = torch.zeros((self.p, self.m), dtype=torch.double)
+        size = 0
+        BTBg = torch.zeros((self.m, self.m,self.p), dtype=torch.double)
+        BgTBg = torch.zeros((self.m, self.m,self.p), dtype=torch.double)
+        for j in range(self.J):
+            result_j = results[j]
+            XTX += result_j[0]
+            BTB += result_j[1]
+            XTB += result_j[2]
+            size += result_j[3]
+            BTBg += result_j[4]
+            BgTBg += result_j[5]
+        A = invK+delta*BTB
+        invA = torch.linalg.inv(A)
+        V_beta = (delta*XTX-(delta**2)*XTB@invA@XTB.T)/size
+        V_delta_1 = (delta**2)*size
+        V_delta_2 = -2*(delta**3)*torch.trace(invA@BTB)
+        V_delta_3 = (delta**4)*torch.trace(invA@BTB@invA@BTB)
+        V_delta = (V_delta_1+V_delta_2+V_delta_3)/(2*(delta**4)*size)
+        V_theta_diag=torch.zeros((self.p,1))
+        for l in range(self.p):
+            BTBgl=BTBg[:,:,l]
+            BgTBgl=BgTBg[:,:,l]
+            Kgl=Kg[:,:,l]
+            term1=torch.trace(K@BTBgl@K@BTBgl)+torch.trace(Kgl@BTB@Kgl@BTB)+torch.trace(Kgl@BTB@Kgl@BTB)
+            
+
+        return (V_beta, V_delta, V_theta_diag)
