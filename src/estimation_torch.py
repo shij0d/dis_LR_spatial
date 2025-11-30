@@ -1927,18 +1927,21 @@ class GPPEstimation:
         theta = theta.clone().detach().requires_grad_(True)
         K = self.kernel(self.knots, self.knots, theta)
         invK = torch.linalg.inv(K)
-
+        
         def compute_j(j):
             local_data = self.dis_data[j]
             local_locs = local_data[:, :2]
             local_z = local_data[:, 2].reshape(-1, 1)
-            local_X = local_data[:, 3:]
+            if self.p>0:
+                local_X = local_data[:, 3:]
+                local_XTX = local_X.T @ local_X
+                local_errorv = local_X@beta-local_z
+                local_XTB = local_X.T @ local_B
+            else:
+                local_errorv = -local_z
             local_size = local_data.shape[0]
-            local_errorv = local_X@beta-local_z
             local_B = self.kernel(local_locs, self.knots, theta) @ invK
-            local_XTX = local_X.T @ local_X
             local_BTB = local_B.T @ local_B
-            local_XTB = local_X.T @ local_B
             local_errorvTB = local_errorv.T@local_B
             local_errorvsquare = local_errorv.T@local_errorv
             return (local_XTX, local_BTB, local_XTB, local_size, local_errorvTB, local_errorvsquare)
