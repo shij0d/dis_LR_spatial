@@ -22,7 +22,8 @@ import os
 import cartopy.crs as ccrs
 import cartopy.feature as cfeature
 import numpy as np
-
+import pandas as pd
+import scipy.stats as stats
 
 
 import sys
@@ -126,6 +127,7 @@ for sat in unique_satellites:
     
 #randomly 
 full_data=np.vstack(dis_data)#.data
+size=full_data.shape[0]
 #full_data=full_data[:12000,:]
 #remove the mean
 beta=np.mean(full_data[:,2])
@@ -145,7 +147,7 @@ for i,local_data in enumerate(dis_data):
 
 
 #estimation
-def estimation(nu,min_dis):
+def construct(nu):
     J=len(dis_data)
     con_pro=0.5
     er = generate_connected_erdos_renyi_graph(J, con_pro)
@@ -153,155 +155,97 @@ def estimation(nu,min_dis):
     np.fill_diagonal(adj_matrix, 1)
     weights,_=optimal_weight_matrix(adj_matrix=adj_matrix)
     weights=torch.tensor(weights,dtype=torch.double)
-    #weights = torch.ones((J,J),dtype=torch.float64)/J
-
-    #grid knots
-    # lats=np.arange(lat_min, lat_max,min_dis)
-    # lons=np.arange(lon_min, lon_max,min_dis)
-    # knots = [(lat, lon) for lat in lats for lon in lons]
-    # random knots
     random.seed(SEED)
     m=100
     knots = random.sample(locations, m)
-    
-
     
     if nu==0.5:
         gpp_estimation = GPPEstimation(dis_data, partial(exponential_kernel,type="chordal"), knots, weights)
     elif nu==1.5:
         gpp_estimation = GPPEstimation(dis_data, partial(onedif_kernel,type="chordal"), knots, weights)
     else:
-        #matern_kernel_nu=matern_kernel_factory(nu)
         gpp_estimation = GPPEstimation(dis_data, partial(matern_kernel,nu=nu,type="chordal"), knots, weights)
     
-    # beta_ini=torch.tensor(1,dtype=torch.float64)
-    # delta_ini=torch.tensor(1,dtype=torch.float64)
-    # alpha_ini=1
-    # length_scale_ini=0.5
-    # theta_ini=torch.tensor([alpha_ini,length_scale_ini],dtype=torch.float64)
-    # x_ini=gpp_estimation.argument2vector_lik(beta_ini,delta_ini,theta_ini)
-    
-    
-    # try:
-    #     mu,Sigma,beta,delta,theta,result=gpp_estimation.get_minimier(x_ini)
-    #     optimal_estimator=(mu,Sigma,beta,delta,theta,result)
-    #     file_path_save="/home/shij0d/Documents/Dis_Spatial/real_data/optimal_estimator.pkl"
-    #     with open(file_path_save, "wb") as file:
-    #         pickle.dump(optimal_estimator, file)
-    #     print("global optimization succeed")
-    #     print(f"beta:{beta.squeeze().numpy()},delta:{delta.numpy()},theta:{theta.squeeze().numpy()}")
-    # except Exception:
-    #     optimal_estimator=("global minimization error")
-    #     print("global optimization failed")
-    
-    
-    
-    beta_ini=None
-    delta_ini=torch.tensor(1,dtype=torch.float64)
-    alpha_ini=10
-    length_scale_ini=0.5
-    theta_ini=torch.tensor([alpha_ini,length_scale_ini],dtype=torch.float64)
-    x_ini=gpp_estimation.argument2vector_lik(beta_ini,delta_ini,theta_ini)
-    
-    
-    try:
-        mu,Sigma,beta,delta,theta,result=gpp_estimation.get_minimier(x_ini)
-        optimal_estimator=(mu,Sigma,beta,delta,theta,result)
-        file_path_save="/home/shij0d/Documents/Dis_Spatial/real_data/optimal_estimator.pkl"
-        with open(file_path_save, "wb") as file:
-            pickle.dump(optimal_estimator, file)
-        print("global optimization succeed")
-        print(f"delta:{delta.numpy()},theta:{theta.squeeze().numpy()}")
-    except Exception:
-        optimal_estimator=("global minimization error")
-        print("global optimization failed")
-  
-    try:
+    return gpp_estimation
 
-        mu_list,Sigma_list,beta_list,delta_list,theta_list,_,_=gpp_estimation.get_local_minimizers_parallel(x_ini,job_num=-1)
-        local_estimators=(mu_list,Sigma_list,beta_list,delta_list,theta_list)
-        file_path_save="/home/shij0d/Documents/Dis_Spatial/real_data/local_estimators.pkl"
-        with open(file_path_save, "wb") as file:
-            pickle.dump(local_estimators, file)
-        print("local optimization succeed")
-    except Exception:
-        print("local optimization failed")
-        return ("local minimization error")
-    if len(mu_list)==0:
-        print("local optimization failed")
-        return ("local minimization error",optimal_estimator)   
-    
-    mu=mu_list[0]
-    Sigma=Sigma_list[0]
-    #beta=beta_list[0]
-    delta=delta_list[0]
-    theta=theta_list[0]
-    num=len(mu_list)
-    if num>1:
-        for j in range(1,num):
-            mu+=mu_list[j]
-            Sigma+=Sigma_list[j]
-            #beta+=beta_list[j]
-            delta+=delta_list[j]
-            theta+=theta_list[j]
-    mu=mu/num
-    Sigma=Sigma/num
-    beta=None
-    delta=delta/num
-    theta=theta/num
-    average_estimator=(mu,Sigma,beta,delta,theta)
-    print(f"delta:{delta.numpy()},theta:{theta.squeeze().numpy()}")
-    
-    file_path_save="/home/shij0d/Documents/Dis_Spatial/real_data/average_estimator.pkl"
-    with open(file_path_save, "wb") as file:
-        pickle.dump(average_estimator, file)
-    print(f"delta:{delta.numpy()},theta:{theta.squeeze().numpy()}")
-    
-    # Read data from the pickle file
-    file_path = "/home/shij0d/Documents/Dis_Spatial/real_data/optimal_estimator.pkl"
-    with open(file_path, "rb") as file:
-        optimal_estimator = pickle.load(file)
-    mu,Sigma,beta,delta,theta,_=optimal_estimator
-    print(f"delta:{delta.numpy()},theta:{theta.squeeze().numpy()}")
-    
-    #Read data from the pickle file
-    file_path = "/home/shij0d/Documents/Dis_Spatial/real_data/average_estimator.pkl"
-    with open(file_path, "rb") as file:
-        average_estimator = pickle.load(file)
-    mu,Sigma,beta,delta,theta=average_estimator
-    
-    print(f"delta:{delta.numpy()},theta:{theta.squeeze().numpy()}")
-    #beta=beta.reshape(-1,1)
-    mu_list=[]
-    Sigma_list=[]
-    beta_list=[]
-    delta_list=[]
-    theta_list=[]
-    for j in range(J):
-        mu_list.append(mu)
-        Sigma_list.append(Sigma)
-        beta_list.append(beta)
-        delta_list.append(delta)
-        theta_list.append(theta)
-    
-    
-    T=100
-    #de_estimators=gpp_estimation.de_optimize_stage2(mu_list,Sigma_list,beta_list,delta_list,theta_list,T=T,weights_round=6)
-    try:
-        de_estimators=gpp_estimation.de_optimize_stage2(mu_list,Sigma_list,beta_list,delta_list,theta_list,T=T,weights_round=6)
-        print("dis optimization succeed")
-    except Exception:
-        print("dis optimization failed")
-        return ("distributed minimization error",optimal_estimator)
-  
-    return de_estimators,optimal_estimator
+gpp_estimation=construct(1.5)
+
+alpha = 0.05  # Significance level (e.g., 95% confidence level)
+z_alpha_half = stats.norm.ppf(1 - alpha / 2)  # Critical value
+
+file_path="/home/shij0d/Documents/Dis_Spatial/real_data/result.pkl"
+with open(file_path, "rb") as file:
+    de_estimators, optimal_estimator = pickle.load(file)
+
+#non-distributed
+mu,Sigma,beta,delta,theta,_=optimal_estimator
+asy_variance_optimal=gpp_estimation.ce_asy_variance_autodif(beta,delta,theta,job_num=-1)
+m=gpp_estimation.m
+V_delta=asy_variance_optimal[0]
+V_theta=asy_variance_optimal[1]
+Inv_V_theta=torch.inverse(V_theta)
+CI_delta=(delta-z_alpha_half/math.sqrt((V_delta*size)),delta+z_alpha_half/math.sqrt((V_delta*size)))
+CI_theta_0=(theta[0]-z_alpha_half*math.sqrt(Inv_V_theta[0,0]/m),theta[0]+z_alpha_half*math.sqrt(Inv_V_theta[0,0]/m))
+CI_theta_1=(theta[1]-z_alpha_half*math.sqrt(Inv_V_theta[1,1]/m),theta[1]+z_alpha_half*math.sqrt(Inv_V_theta[1,1]/m))
+
+#distributed
+mu_list,Sigma_list,beta_lists,delta_lists,theta_lists,s_list,f_value=de_estimators
+beta_list,delta_list,theta_list=beta_lists[-1],delta_lists[-1],theta_lists[-1]
+CI_delta_list=[]
+CI_theta_0_list=[]
+CI_theta_1_list=[]
+for j in range(gpp_estimation.J):
+    beta_j=beta_list[j]
+    delta_j=delta_list[j]
+    theta_j=theta_list[j]
+    asy_variance_j=gpp_estimation.ce_asy_variance_autodif(beta_j,delta_j,theta_j,job_num=-1)
+    V_delta_j=asy_variance_j[0]
+    V_theta_j=asy_variance_j[1]
+    Inv_V_theta_j=torch.inverse(V_theta)
+    CI_delta_j=(delta_j-z_alpha_half/math.sqrt((V_delta_j*size)),delta_j+z_alpha_half/math.sqrt((V_delta_j*size)))
+    CI_theta_0_j=(theta_j[0]-z_alpha_half*math.sqrt(Inv_V_theta_j[0,0]/m),theta_j[0]+z_alpha_half*math.sqrt(Inv_V_theta_j[0,0]/m))
+    CI_theta_1_j=(theta_j[1]-z_alpha_half*math.sqrt(Inv_V_theta_j[1,1]/m),theta_j[1]+z_alpha_half*math.sqrt(Inv_V_theta_j[1,1]/m))
+    CI_delta_list.append(CI_delta_j)
+    CI_theta_0_list.append(CI_theta_0_j)
+    CI_theta_1_list.append(CI_theta_1_j)
 
 
+#tranform to the corresponding intervals to the paper
+
+#columns: tau_lower, tau_upper, sigma_lower, sigma_upper, beta_lower, beta_upper
+#rows: non_distributed, machine 1,.., machine 6
 
 
+# Define columns and rows
+columns = ["tau_lower", "tau_upper", "sigma_lower", "sigma_upper", "beta_lower", "beta_upper"]
+rows = ["non_distributed"] + [f"machine {i+1}" for i in range(gpp_estimation.J)]
 
-result=estimation(1.5,3)
+# Create the DataFrame
+CI_df = pd.DataFrame(index=rows, columns=columns)
 
-file_path_save="/home/shij0d/Documents/Dis_Spatial/real_data/result.pkl"
-with open(file_path_save, "wb") as file:
-    pickle.dump(result, file)
+# Fill in values for non-distributed method
+CI_df.loc["non_distributed", "tau_lower"] = 1 / math.sqrt(CI_delta[1])
+CI_df.loc["non_distributed", "tau_upper"] = 1 / math.sqrt(CI_delta[0])
+CI_df.loc["non_distributed", "sigma_lower"] = math.sqrt(CI_theta_0[0])
+CI_df.loc["non_distributed", "sigma_upper"] = math.sqrt(CI_theta_0[1])
+CI_df.loc["non_distributed", "beta_lower"] = CI_theta_1[0].item()
+CI_df.loc["non_distributed", "beta_upper"] = CI_theta_1[1].item()
+
+# Fill in values for distributed method
+for j in range(gpp_estimation.J):
+    CI_df.loc[f"machine {j+1}", "tau_lower"] = 1 / math.sqrt(CI_delta_list[j][1])
+    CI_df.loc[f"machine {j+1}", "tau_upper"] = 1 / math.sqrt(CI_delta_list[j][0])
+    CI_df.loc[f"machine {j+1}", "sigma_lower"] = math.sqrt(CI_theta_0_list[j][0])
+    CI_df.loc[f"machine {j+1}", "sigma_upper"] = math.sqrt(CI_theta_0_list[j][1])
+    CI_df.loc[f"machine {j+1}", "beta_lower"] = CI_theta_1_list[j][0].item()
+    CI_df.loc[f"machine {j+1}", "beta_upper"] = CI_theta_1_list[j][1].item()
+
+# Save the DataFrame to a CSV file
+output_path = "/home/shij0d/Documents/Dis_Spatial/real_data/CI.csv"
+CI_df.to_csv(output_path)
+
+print(f"Confidence interval data saved to {output_path}")
+
+    
+
+
