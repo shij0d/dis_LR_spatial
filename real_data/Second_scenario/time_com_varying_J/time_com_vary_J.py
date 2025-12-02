@@ -29,7 +29,7 @@ import sys
 import time
 
 # Add the path where your Python packages are located
-sys.path.append('/home/shij0d/Documents/Dis_Spatial')
+#sys.path.append('/home/shij0d/Documents/Dis_Spatial')
 
 import unittest
 import torch
@@ -52,7 +52,7 @@ from joblib import Parallel, delayed
 import pandas as pd
 
 SEED=2024
-path="/home/shij0d/Documents/Dis_Spatial/real_data/MRA_codeAndData/MIRSmra.csv"
+path="real_data/MRA_codeAndData/MIRSmra.csv"
 full_data=pd.read_csv(path,header=None,index_col=None).values
 
 full_data[:,0]=full_data[:,0]-180
@@ -169,6 +169,6 @@ for J in Js:
         result=estimation(r,J)
         results_r.append(result)
     results.append(results_r)
-with open(f'/home/shij0d/Documents/Dis_Spatial/real_data/time_comparison/time_com_varying_J_fixed_N.pkl', 'wb') as f:
+with open(f'real_data/time_comparison/time_com_varying_J_fixed_N.pkl', 'wb') as f:
     pickle.dump(results, f)
     

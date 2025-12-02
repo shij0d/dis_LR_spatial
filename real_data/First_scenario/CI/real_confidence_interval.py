@@ -30,7 +30,7 @@ import sys
 import time
 
 # Add the path where your Python packages are located
-sys.path.append('/home/shij0d/Documents/Dis_Spatial')
+#sys.path.append('/home/shij0d/Documents/Dis_Spatial')
 
 import unittest
 import torch
@@ -55,7 +55,7 @@ SEED=2024
 
 
 
-path = "/home/shij0d/Documents/Dis_Spatial/real_data/Blended-Hydro_TPW_MAP_d20241105/"
+path = "real_data/Blended-Hydro_TPW_MAP_d20241105/"
 files = [f for f in os.listdir(path) if os.path.isfile(os.path.join(path, f))]
 file_path=path+files[0]
 file2read = Dataset(file_path)
@@ -173,7 +173,7 @@ gpp_estimation=construct(1.5)
 alpha = 0.05  # Significance level (e.g., 95% confidence level)
 z_alpha_half = stats.norm.ppf(1 - alpha / 2)  # Critical value
 
-file_path="/home/shij0d/Documents/Dis_Spatial/real_data/result.pkl"
+file_path="real_data/result.pkl"
 with open(file_path, "rb") as file:
     de_estimators, optimal_estimator = pickle.load(file)
 
@@ -241,7 +241,7 @@ for j in range(gpp_estimation.J):
     CI_df.loc[f"machine {j+1}", "beta_upper"] = CI_theta_1_list[j][1].item()
 
 # Save the DataFrame to a CSV file
-output_path = "/home/shij0d/Documents/Dis_Spatial/real_data/CI.csv"
+output_path = "real_data/CI.csv"
 CI_df.to_csv(output_path)
 
 print(f"Confidence interval data saved to {output_path}")

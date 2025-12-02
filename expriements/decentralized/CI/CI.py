@@ -1,6 +1,6 @@
 # %%
-import sys
-sys.path.append('/home/shij0d/Documents/Dis_Spatial')
+#import sys
+#sys.path.append('/home/shij0d/Documents/Dis_Spatial')
 
 from src.kernel import exponential_kernel, onedif_kernel
 from joblib import Parallel, delayed
@@ -97,7 +97,7 @@ parameters_true=torch.cat([beta_true,delta_true,theta_true])
 #             torch.sqrt(asy_variance_delta),
 #             torch.sqrt(torch.diag(asy_variance_theta))]
 
-with open(f'/home/shij0d/Documents/Dis_Spatial/expriements/decentralized/varying_parameter/more_irregular/nu_{nu}_length_scale_{length_scale}_memeff.pkl', 'rb') as f:
+with open(f'expriements/decentralized/varying_parameter/more_irregular/nu_{nu}_length_scale_{length_scale}_memeff.pkl', 'rb') as f:
     results = pickle.load(f)
 error_rep = []
 beta_list = []
@@ -187,6 +187,6 @@ lower_bounds_tensor=torch.stack(lower_bounds_list)
 cv_prob=torch.mean(is_in_tensor,dim=0)
 results=[std_emp,std_est_avg,cv_prob,std_tensor,is_in_tensor,parameters_tensor,upper_bounds_tensor,lower_bounds_tensor]
 
-with open("/home/shij0d/Documents/Dis_Spatial/expriements/decentralized/CI/results.pkl", "wb") as file:
+with open("expriements/decentralized/CI/results.pkl", "wb") as file:
     pickle.dump(results, file)
 

@@ -20,7 +20,7 @@ import sys
 import time
 
 # Add the path where your Python packages are located
-sys.path.append('/home/shij0d/Documents/Dis_Spatial')
+#sys.path.append('/home/shij0d/Documents/Dis_Spatial')
 
 import unittest
 import torch
@@ -47,7 +47,7 @@ SEED=2024
 
 
 
-path = "/home/shij0d/Documents/Dis_Spatial/real_data/Blended-Hydro_TPW_MAP_d20241105/"
+path = "real_data/Blended-Hydro_TPW_MAP_d20241105/"
 files = [f for f in os.listdir(path) if os.path.isfile(os.path.join(path, f))]
 file_path=path+files[0]
 file2read = Dataset(file_path)
@@ -180,7 +180,7 @@ def estimation_prediction(nu):
     theta_ini=torch.tensor([alpha_ini,length_scale_ini],dtype=torch.float64)
     x_ini=gpp_estimation.argument2vector_lik(beta_ini,delta_ini,theta_ini)
     
-    file_path_optimal= "/home/shij0d/Documents/Dis_Spatial/real_data/prediction/optimal_estimator.pkl"
+    file_path_optimal= "real_data/prediction/optimal_estimator.pkl"
     if os.path.exists(file_path_optimal):
         with open(file_path, "rb") as file:
             optimal_estimator = pickle.load(file)
@@ -194,7 +194,7 @@ def estimation_prediction(nu):
             gpp_prediction=GPPPrediction(locations_pre,kernelf,knots,None,mu,Sigma,None,delta,theta)
             optimal_pre=gpp_prediction.predict()
             optimal_estimator=(mu,Sigma,beta,delta,theta,result)
-            file_path_save="/home/shij0d/Documents/Dis_Spatial/real_data/prediction/optimal_estimator.pkl"
+            file_path_save="real_data/prediction/optimal_estimator.pkl"
             with open(file_path_save, "wb") as file:
                 pickle.dump(optimal_estimator, file)
             print("global optimization succeed")
@@ -203,7 +203,7 @@ def estimation_prediction(nu):
             optimal_estimator=("global minimization error")
             print("global optimization failed")
   
-    file_path_avg="/home/shij0d/Documents/Dis_Spatial/real_data/prediction/average_estimator.pkl"
+    file_path_avg="real_data/prediction/average_estimator.pkl"
     if os.path.exists(file_path_avg):
         with open(file_path_avg, "rb") as file:
             average_estimator = pickle.load(file)
@@ -225,7 +225,7 @@ def estimation_prediction(nu):
         try:
             mu_list,Sigma_list,beta_list,delta_list,theta_list,_,_=gpp_estimation.get_local_minimizers_parallel(x_ini,job_num=-1)
             local_estimators=(mu_list,Sigma_list,beta_list,delta_list,theta_list)
-            file_path_save="/home/shij0d/Documents/Dis_Spatial/real_data/prediction/local_estimators.pkl"
+            file_path_save="real_data/prediction/local_estimators.pkl"
             with open(file_path_save, "wb") as file:
                 pickle.dump(local_estimators, file)
             print("local optimization succeed")
@@ -250,7 +250,7 @@ def estimation_prediction(nu):
             average_estimator=(mu,Sigma,beta,delta,theta)
             print(f"delta:{delta.numpy()},theta:{theta.squeeze().numpy()}")
         
-            file_path_save="/home/shij0d/Documents/Dis_Spatial/real_data/prediction/average_estimator.pkl"
+            file_path_save="real_data/prediction/average_estimator.pkl"
             with open(file_path_save, "wb") as file:
                 pickle.dump(average_estimator, file)
             print(f"delta:{delta.numpy()},theta:{theta.squeeze().numpy()}")
@@ -297,6 +297,6 @@ def estimation_prediction(nu):
 
 result=estimation_prediction(1.5)
 
-file_path_save="/home/shij0d/Documents/Dis_Spatial/real_data/prediction/result_prediction.pkl"
+file_path_save="real_data/prediction/result_prediction.pkl"
 with open(file_path_save, "wb") as file:
     pickle.dump(result, file)

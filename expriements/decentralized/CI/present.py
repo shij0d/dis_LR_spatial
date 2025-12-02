@@ -1,7 +1,7 @@
 #%%
 import pickle
 import torch
-with open("/home/shij0d/Documents/Dis_Spatial/expriements/decentralized/CI/results.pkl", "rb") as file:
+with open("expriements/decentralized/CI/results.pkl", "rb") as file:
     results=pickle.load(file)
 
 # %%

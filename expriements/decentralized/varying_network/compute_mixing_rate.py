@@ -2,7 +2,7 @@
 import sys
 
 # Add the path where your Python packages are located
-sys.path.append('/home/shij0d/Documents/Dis_Spatial')
+#sys.path.append('/home/shij0d/Documents/Dis_Spatial')
 
 from src.networks import generate_connected_erdos_renyi_graph_with_seed
 from src.weights import optimal_weight_matrix

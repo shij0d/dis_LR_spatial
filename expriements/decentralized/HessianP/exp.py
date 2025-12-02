@@ -1,6 +1,6 @@
 # %%
-import sys
-sys.path.append('/home/shij0d/Documents/Dis_Spatial')
+#import sys
+#sys.path.append('/home/shij0d/Documents/Dis_Spatial')
 
 from src.kernel import exponential_kernel, onedif_kernel
 from joblib import Parallel, delayed
@@ -103,7 +103,7 @@ for nu_length in nu_lengths:
     min_eigenvalue_tensor = torch.stack(min_eigenvalue_list)
     results.append(min_eigenvalue_tensor)
 
-with open("/home/shij0d/Documents/Dis_Spatial/expriements/decentralized/HessianP/results.pkl", "wb") as file:
+with open("expriements/decentralized/HessianP/results.pkl", "wb") as file:
         pickle.dump(results, file)
 
 

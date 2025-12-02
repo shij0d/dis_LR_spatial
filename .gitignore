@@ -18,3 +18,5 @@ __pycache__
 *.pdf
 test
 expriements/centralized
+
+dis_spatial.egg-info

@@ -3,7 +3,7 @@ import sys
 
 
 # Add the path where your Python packages are located
-sys.path.append('/home/shij0d/Documents/Dis_Spatial')
+#sys.path.append('/home/shij0d/Documents/Dis_Spatial')
 
 import unittest
 import torch
@@ -137,5 +137,5 @@ for J in Js:
     # Assign results based on the index to maintain order
     for i, result in results:
         results[i] = result
-    with open(f'/home/shij0d/Documents/Dis_Spatial/expriements/decentralized/varying_machine_number/more_irregular/J_{J}_memeff.pkl', 'wb') as f:
+    with open(f'expriements/decentralized/varying_machine_number/more_irregular/J_{J}_memeff.pkl', 'wb') as f:
         pickle.dump(results, f)

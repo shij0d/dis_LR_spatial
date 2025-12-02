@@ -3,8 +3,7 @@ import sys
 
 
 # Add the path where your Python packages are located
-sys.path.append('/home/shij0d/documents/dis_LR_spatial')
-
+#sys.path.append('/home/shij0d/documents/dis_LR_spatial')
 import unittest
 import torch
 from scipy.optimize import minimize
@@ -134,7 +133,7 @@ for m in ms:
     #     print(f"r:{r}")
     #     result=estimate_l(r)
     #     results.append(result)
-    # with open(f'/home/shij0d/Documents/Dis_Spatial/expriements/decentralized/varying_rank/m_{m}.pkl', 'wb') as f:
+    # with open(f'expriements/decentralized/varying_rank/m_{m}.pkl', 'wb') as f:
     #     pickle.dump(results, f)
     results = [None] * len(rs)
     # Parallel execution for the list of rs, while maintaining the index (i)

@@ -1,9 +1,9 @@
 #%%
-import sys
+#import sys
 
 
-# Add the path where your Python packages are located
-sys.path.append('/home/shij0d/Documents/Dis_Spatial')
+## Add the path where your Python packages are located
+#sys.path.append('/home/shij0d/Documents/Dis_Spatial')
 
 import unittest
 import torch
@@ -145,5 +145,5 @@ nus=np.arange(0.2, 1, 0.1)
 results = Parallel(n_jobs=-1)(
     delayed(estimate)(r,nu) for  r in rs for nu in nus
 )
-with open(f'/home/shij0d/Documents/Dis_Spatial/expriements/decentralized/estimating_nu/r_range(60,100)_nu_{0.53}.pkl', 'wb') as f:
+with open(f'expriements/decentralized/estimating_nu/r_range(60,100)_nu_{0.53}.pkl', 'wb') as f:
     pickle.dump(results, f)

@@ -1,11 +1,11 @@
 #%%
-path_project='/home/shij0d/Documents/Dis_Spatial'
+#path_project='/home/shij0d/Documents/Dis_Spatial'
 import os
-import sys
+#import sys
 import time
 
 # Add the path where your Python packages are located
-sys.path.append(path_project)
+#sys.path.append(path_project)
 
 import unittest
 import torch
@@ -28,7 +28,7 @@ from joblib import Parallel, delayed
 import pandas as pd
 
 SEED=2024
-path=os.path.join(path_project,'real_data/Second_scenario/MRA_codeAndData/MIRSmra.csv')
+path='real_data/Second_scenario/MRA_codeAndData/MIRSmra.csv'
 print(path)
 full_data=pd.read_csv(path,header=None,index_col=None).values
 

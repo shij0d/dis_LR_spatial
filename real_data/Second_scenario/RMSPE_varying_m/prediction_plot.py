@@ -1,9 +1,9 @@
 #%%
-import sys
+#import sys
 
-path_project="/home/shij0d/Documents/Dis_Spatial"
-# Add the path where your Python packages are located
-sys.path.append(path_project)
+#path_project="/home/shij0d/Documents/Dis_Spatial"
+## Add the path where your Python packages are located
+#sys.path.append(path_project)
 
 import unittest
 import torch
@@ -24,9 +24,9 @@ import multiprocessing
 import matplotlib.pyplot as plt
 import os
 
-path_results=os.path.join(path_project,'real_data/Second_scenario/RMSPE_varying_m/result_prediction_varying_m_grid_knots.pkl')
-path_results_more=os.path.join(path_project,'real_data/Second_scenario/RMSPE_varying_m/result_prediction_varying_m_grid_knots_more.pkl')
-path_true=os.path.join(path_project,'real_data/Second_scenario/RMSPE_varying_m/result_prediction_y_true.pkl')
+path_results='real_data/Second_scenario/RMSPE_varying_m/result_prediction_varying_m_grid_knots.pkl'
+path_results_more='real_data/Second_scenario/RMSPE_varying_m/result_prediction_varying_m_grid_knots_more.pkl'
+path_true='real_data/Second_scenario/RMSPE_varying_m/result_prediction_y_true.pkl'
 
 with open(path_results, 'rb') as f:
     results=pickle.load(f)
@@ -69,6 +69,6 @@ ax.grid(True, linestyle='--', alpha=0.6)
 
 plt.tight_layout()
 
-plt.savefig("/home/shij0d/Documents/Dis_Spatial/real_data/RMSPE_varying_m.pdf")
+plt.savefig("real_data/RMSPE_varying_m.pdf")
 plt.show()
 # %%

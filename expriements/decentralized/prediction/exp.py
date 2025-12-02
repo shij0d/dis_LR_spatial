@@ -3,8 +3,7 @@ import sys
 import time
 
 # Add the path where your Python packages are located
-sys.path.append('/home/shij0d/documents/dis_LR_spatial')
-
+#sys.path.append('/home/shij0d/documents/dis_LR_spatial')
 import unittest
 import torch
 from scipy.optimize import minimize
@@ -175,7 +174,7 @@ for nu_length in nu_lengths:
     # Assign results based on the index to maintain order
     for i, result in results:
         results[i] = result
-    with open(f'/home/shij0d/Documents/Dis_Spatial/expriements/decentralized/prediction/nu_{nu}_length_scale_{length_scale_act}_memeff.pkl', 'wb') as f:
+    with open(f'expriements/decentralized/prediction/nu_{nu}_length_scale_{length_scale_act}_memeff.pkl', 'wb') as f:
         pickle.dump(results, f)
 
     

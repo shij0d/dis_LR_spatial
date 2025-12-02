@@ -1,8 +1,6 @@
-
-path_project="/home/shij0d/Documents/Dis_Spatial"
-import sys
-sys.path.append(path_project)
-import os
+#path_project="/home/shij0d/Documents/Dis_Spatial"
+#import sys
+#sys.path.append(path_project)
 import warnings
 # Suppress FutureWarning from torch.load
 #warnings.filterwarnings("ignore")
@@ -30,7 +28,7 @@ import matplotlib.pyplot as plt
 from joblib import Parallel, delayed
 
 SEED=2024
-path=os.path.join(path_project,'real_data/Second_scenario/MRA_codeAndData/MIRSmra.csv')
+path='real_data/Second_scenario/MRA_codeAndData/MIRSmra.csv'
 full_data=pd.read_csv(path,header=None,index_col=None).values
 
 full_data[:,0]=full_data[:,0]-180
@@ -53,7 +51,7 @@ locations_est_list = [tuple(row) for row in locations_est]
 
 locations_pre=data_pre[:,:2]
 y_true=data_pre[:,2]
-file_path_save=os.path.join(path_project,'real_data/Second_scenario/RMSPE_varying_m/result_prediction_y_true.pkl')
+file_path_save='real_data/Second_scenario/RMSPE_varying_m/result_prediction_y_true.pkl'
 with open(file_path_save, "wb") as file:
         pickle.dump(y_true, file)
 J=16
@@ -176,7 +174,7 @@ def estimation_prediction(m,nu=1.5):
 
 ms=[400,500]
 results=[]
-file_path_save=os.path.join(path_project,'real_data/Second_scenario/RMSPE_varying_m/result_prediction_varying_m_grid_knots_more.pkl')
+file_path_save='real_data/Second_scenario/RMSPE_varying_m/result_prediction_varying_m_grid_knots_more.pkl'
 for i,m in enumerate(ms):
     print(m)
     result_i=estimation_prediction(m)
