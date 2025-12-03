@@ -3,6 +3,7 @@ import os
 import time
 
 
+import unittest
 import torch
 from scipy.optimize import minimize
 from src.estimation_torch_real_data import GPPEstimation  # Assuming your class is defined in gppestimation.py
@@ -21,7 +22,6 @@ import multiprocessing
 import matplotlib.pyplot as plt
 from joblib import Parallel, delayed
 import pandas as pd
-
 SEED=2024
 path="real_data/Second_scenario/MRA_codeAndData/MIRSmra.csv"
 full_data=pd.read_csv(path,header=None,index_col=None).values
@@ -79,7 +79,7 @@ def initial(nu,knots):
 
 
 #estimation
-def estimation(r,J,nu=1.5):
+def estimation(r,m=60,J=16,nu=1.5):
     dis_data = np.array_split(shuffled_data, J)
     J=len(dis_data)
     weights = torch.ones((J,J),dtype=torch.float64)/J
@@ -92,7 +92,6 @@ def estimation(r,J,nu=1.5):
     # knots = [(lat, lon) for lat in lats for lon in lons]
     #random knots
     random.seed(SEED+1)
-    m=60
     knots = random.sample(locations, m)
     
     if nu==0.5:
@@ -102,7 +101,10 @@ def estimation(r,J,nu=1.5):
     else:
         gpp_estimation = GPPEstimation(dis_data, partial(matern_kernel,nu=nu,type="chordal"), knots, weights)  
     
-    initial_estimator=initial(nu,knots)
+    random.seed(SEED+1)
+    #knots_inital = random.sample(locations, 60)
+    knots_inital=knots
+    initial_estimator=initial(nu,knots_inital)
     x_inital=gpp_estimation.argument2vector_lik(initial_estimator[2],initial_estimator[3],initial_estimator[4])
     
     start_time = time.time()
@@ -121,26 +123,26 @@ def estimation(r,J,nu=1.5):
     end_time = time.time()
     elapsed_time_de = end_time - start_time
     print(elapsed_time_de)
-    return elapsed_time_mle,elapsed_time_de,de_estimators,optimal_estimator
+    return elapsed_time_mle,elapsed_time_de,de_estimators[3:5],optimal_estimator[3:5]
 
 
 
 Js=[2,4,8,10,16]
-
+ms=[60,70,80,90,100,150,200,250,300]
 #Js=[4]
 os.environ["OMP_NUM_THREADS"] = "1"  # For OpenMP (e.g., NumPy, scikit-learn)
 os.environ["MKL_NUM_THREADS"] = "1"  # If you're using MKL-based libraries
 os.environ["OPENBLAS_NUM_THREADS"] = "1"  # For OpenBLAS (NumPy, SciPy)
 os.environ["NUMEXPR_NUM_THREADS"] = "1"  # For NumExpr (if used)
 results=[]
-for J in Js:
+for m in ms:
     results_r=[]
-    for r in range(20):
-        print(f"J:{J},r:{r}")
-        result=estimation(r,J)
+    for r in range(5):
+        print(f"m:{m},r:{r}")
+        result=estimation(r,m)
         results_r.append(result)
     results.append(results_r)
-with open(f'real_data/Second_scenario/time_com_varying_J/time_com_varying_J_fixed_N.pkl', 'wb') as f:
-    pickle.dump(results, f)
+    with open(f'real_data/Second_scenario/time_com_varying_m/time_com_varying_m_fixed_J.pkl', 'wb') as f:
+        pickle.dump(results, f)
     
 

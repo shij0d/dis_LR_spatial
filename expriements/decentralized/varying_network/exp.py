@@ -142,6 +142,6 @@ for con_prob in con_probs:
     # Assign results based on the index to maintain order
     for i, result in results:
         results[i] = result
-    with open(f'/home/shij0d/documents/dis_LR_spatial/expriements/decentralized/varying_network/more_irregular/con_prob_{con_prob}_memeff.pkl', 'wb') as f:
+    with open(f'expriements/decentralized/varying_network/more_irregular/con_prob_{con_prob}_memeff.pkl', 'wb') as f:
         pickle.dump(results, f)
    

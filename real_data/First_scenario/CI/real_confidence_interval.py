@@ -55,7 +55,7 @@ SEED=2024
 
 
 
-path = "real_data/Blended-Hydro_TPW_MAP_d20241105/"
+path = "real_data/First_scenario/data/Blended-Hydro_TPW_MAP_d20241105/"
 files = [f for f in os.listdir(path) if os.path.isfile(os.path.join(path, f))]
 file_path=path+files[0]
 file2read = Dataset(file_path)

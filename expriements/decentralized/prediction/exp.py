@@ -1,12 +1,5 @@
 #%%
-import sys
-import time
-
-# Add the path where your Python packages are located
-#sys.path.append('/home/shij0d/documents/dis_LR_spatial')
-import unittest
 import torch
-from scipy.optimize import minimize
 from src.estimation_torch import GPPEstimation  # Assuming your class is defined in gppestimation.py
 from src.generation import GPPSampleGenerator
 from sklearn.gaussian_process.kernels import Matern
@@ -17,11 +10,8 @@ from src.weights import optimal_weight_matrix
 from src.prediction import GPPPrediction
 import networkx as nx
 import numpy as np
-import random
 import pickle
 from functools import partial
-import multiprocessing
-import matplotlib.pyplot as plt
 from joblib import Parallel, delayed
 
 #%%
@@ -39,7 +29,7 @@ def estimation_prediction(r,length_scale,nu):
     l=math.sqrt(2*N)*mis_dis
     extent=-l/2,l/2,-l/2,l/2,
     coefficients=(-1,2,3,-2,1)
-    noise_level=2
+    noise_level=math.sqrt(0.1)
     J=10
     con_pro=0.5
     er = generate_connected_erdos_renyi_graph(J, con_pro)
@@ -82,14 +72,14 @@ def estimation_prediction(r,length_scale,nu):
         
         optimal_estimator=(mu,Sigma,beta,delta,theta,result)
         print("global optimization succeed")
-        print(f"beta:{beta.squeeze().numpy()},delta:{delta.numpy()},theta:{theta.squeeze().numpy()}")
+        #print(f"beta:{beta.squeeze().numpy()},delta:{delta.numpy()},theta:{theta.squeeze().numpy()}")
     except Exception:
         optimal_estimator=(r, "global minimization error")
         print("global optimization failed")
   
     try:
         
-        mu_list,Sigma_list,beta_list,delta_list,theta_list,_,_=gpp_estimation.get_local_minimizers_parallel(x_true)
+        mu_list,Sigma_list,beta_list,delta_list,theta_list,_,_=gpp_estimation.get_local_minimizers_parallel(x_true,-1)
 
         print("local optimization succeed")
     except Exception:
@@ -117,7 +107,7 @@ def estimation_prediction(r,length_scale,nu):
     beta=beta/num
     delta=delta/num
     theta=theta/num
-    print(f"beta:{beta.squeeze().numpy()},delta:{delta.numpy()},theta:{theta.squeeze().numpy()}")
+    #print(f"beta:{beta.squeeze().numpy()},delta:{delta.numpy()},theta:{theta.squeeze().numpy()}")
     mu_list=[]
     Sigma_list=[]
     beta_list=[]
@@ -150,9 +140,11 @@ def estimation_prediction(r,length_scale,nu):
         print("dis optimization failed")
         return (r, "distributed minimization error")
   
-    return de_estimators,optimal_estimator,de_pre_list,optimal_pre,z_pre
+    return de_estimators,optimal_estimator,de_pre_list,optimal_pre,z_pre,locations_pre
+
+#estimation_prediction(0,0.1,0.5)
 nu_lengths=[(0.5,0.033),(0.5,0.1),(0.5,0.234),(1.5,0.021*math.sqrt(3)),(1.5,0.063*math.sqrt(3)),(1.5,0.148*math.sqrt(3))]
-#nu_lengths=[nu_lengths[1]]
+#nu_lengths=[(0.5,0.033),(1.5,0.021*math.sqrt(3))]
 rs=[r for r in range(100)]
 #rs=[8]
 for nu_length in nu_lengths:
@@ -174,7 +166,7 @@ for nu_length in nu_lengths:
     # Assign results based on the index to maintain order
     for i, result in results:
         results[i] = result
-    with open(f'expriements/decentralized/prediction/nu_{nu}_length_scale_{length_scale_act}_memeff.pkl', 'wb') as f:
+    with open(f'expriements/decentralized/prediction/noise_sqrt(0.1)/nu_{nu}_length_scale_{length_scale_act}_memeff.pkl', 'wb') as f:
         pickle.dump(results, f)
 
     

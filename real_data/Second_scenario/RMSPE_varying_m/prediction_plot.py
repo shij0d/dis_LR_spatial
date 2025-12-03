@@ -69,6 +69,6 @@ ax.grid(True, linestyle='--', alpha=0.6)
 
 plt.tight_layout()
 
-plt.savefig("real_data/RMSPE_varying_m.pdf")
+plt.savefig("real_data/Second_scenario/RMSPE_varying_m/RMSPE_varying_m_sparser.pdf")
 plt.show()
 # %%

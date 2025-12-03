@@ -144,5 +144,5 @@ results = Parallel(n_jobs=-1)(
 # Assign results based on the index to maintain order
 for i, result in results:
     results[i] = result
-with open(f'/home/shij0d/documents/dis_LR_spatial/expriements/decentralized/Unequal_sample_size/more_irregular/res_memeff.pkl', 'wb') as f:
+with open(f'expriements/decentralized/Unequal_sample_size/more_irregular/res_memeff.pkl', 'wb') as f:
     pickle.dump(results, f)
