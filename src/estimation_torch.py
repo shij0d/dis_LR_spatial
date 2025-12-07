@@ -714,276 +714,6 @@ class GPPEstimation:
 
         return (mu, Sigma, beta, delta, theta, result)
 
-    def dis_opimize_stage1(self, initial_params: torch.Tensor, T: int, noisy=True):
-        step_size = 0.1
-        epsilon = 0.001
-        history_size = 10
-        length = initial_params.shape[0]
-        initial_params.squeeze_()
-
-        def sum_grad(params: torch.Tensor):
-            grad = torch.zeros((length, 1), dtype=torch.double)
-            params = np.squeeze(params.numpy())
-            for j in range(self.J):
-                _, gradf = self.local_fun_wrapper(j)
-                local_gad = gradf(params).reshape(-1, 1)
-                grad += torch.tensor(local_gad, dtype=torch.double)
-            return grad
-
-        def com_grad(params: torch.Tensor):
-            params = np.squeeze(params.numpy())
-            _, gradf = self.com_fun_wrapper()
-            return gradf(params).reshape(-1, 1)
-
-        d = initial_params.numel()
-        s_list = []  # List to store s_t
-        y_bar_list = []  # List to store y_bar_t
-        rho_list = []  # List to store rho_t
-        alpha_list = []  # List to store alpha_t
-        q = torch.zeros(d, dtype=torch.double)
-
-        params = initial_params
-        params_list = [params]
-
-        for t in range(T):
-            _, _, _, _, theta = self.vector2arguments(params.squeeze())
-
-            step_size_g = torch.ones(length)*100
-            # step_size_g[-2]=1000
-            # if t<=200:
-            #     step_size_g[-1]=2
-            # else:
-            #     step_size_g[-1]=200
-            step_size_qn = 1
-            step_size_bb = 0.1
-            if noisy:
-                noise = torch.randn(size=(length,))*epsilon/math.sqrt(length)
-            else:
-                noise = 0.0
-
-                # y_local_grad=weights_kron_f(length)@(y_local_grad+local_grads(params_Mstack_list[t])-local_grads(params_Mstack_list[t-1]))
-            if t == 0:
-                grad = (sum_grad(params)+com_grad(params))/10**4
-                grad.squeeze_()
-                grad_noise = grad+noise
-                p_t = -grad_noise
-                bb = 1
-            else:
-
-                q[:] = grad_noise
-                for i in range(len(s_list) - 1, -1, -1):
-                    alpha_i = rho_list[i] * torch.dot(s_list[i], q)
-                    alpha_list.append(alpha_i)
-                    q -= alpha_i * y_bar_list[i]
-                r = q.clone()
-
-                for i in range(len(s_list)):
-                    beta = rho_list[i] * torch.dot(y_bar_list[i], r)
-                    r += s_list[i] * (alpha_list[i] - beta)
-                p_t = -r
-                alpha_list.clear()
-
-                # bb
-                bb = s_list[-1]/y_bar_list[-1]
-                bb = bb.abs()
-
-            params_g = params-step_size_g*grad_noise
-            # parms_qn=params+step_size_qn*p_t
-            params_bb = params-step_size_bb*bb*grad_noise
-
-            grad_g = (sum_grad(params_g)+com_grad(params_g))/10**4
-            # _,_,_,_,theta_qn=self.vector2arguments(parms_qn.squeeze())
-            # exception_occurred = False  # Initialize the boolean variable
-
-            # try:
-            #     grad_qn = (sum_grad(parms_qn) + com_grad(parms_qn)) / 10**4
-            # except NameError as e:
-            #     print(f"NameError: {e}")
-            #     exception_occurred = True
-            # except TypeError as e:
-            #     print(f"TypeError: {e}")
-            #     exception_occurred = True
-            # except AttributeError as e:
-            #     print(f"AttributeError: {e}")
-            #     exception_occurred = True
-            # except ZeroDivisionError as e:
-            #     print(f"ZeroDivisionError: {e}")
-            #     exception_occurred = True
-            # except Exception as e:
-            #     print(f"An unexpected error occurred: {e}")
-            #     exception_occurred = True
-
-            exception_occurred_bb = False  # Initialize the boolean variable
-            try:
-                grad_bb = (sum_grad(params_bb) + com_grad(params_bb)) / 10**4
-            except Exception as e:
-                # print(f"An unexpected error occurred: {e}")
-                exception_occurred_bb = True
-
-            grad_norm_g = torch.norm(grad_g)
-            grad_norm_bb = torch.norm(grad_bb)
-
-            if exception_occurred_bb == True or grad_norm_g < grad_norm_bb:
-                params_new = params_g
-                grad_new = grad_g
-                # print("gradient descent method")
-            else:
-                params_new = params_bb
-                grad_new = grad_bb
-                # print("BB")
-            # params_new=params_g
-            # grad_new=grad_g
-            # grad_norm_g=torch.norm(grad_g)
-            # grad_norm_qn=torch.norm(grad_qn)
-            # if exception_occurred==False or grad_norm_g<grad_norm_qn:
-            #     params_new=params_g
-            #     grad_new=grad_g
-            #     print("gradient descent method")
-            # else:
-            #     params_new=parms_qn
-            #     grad_new=grad_qn
-            #     print("LBFGS")
-
-            # params_new=params+step_size*p_t
-            # grad_new=(sum_grad(params_new)+com_grad(params_new))/10**4
-            grad_new.squeeze_()
-            s_t = params_new-params
-            y_t = grad_new-grad
-
-            gamma_t0 = max(torch.dot(y_t, y_t) / torch.dot(y_t, s_t), 1)
-            # print("gamma_t0:",torch.dot(y_t, y_t) / torch.dot(y_t, s_t))
-            h_t0 = 1/gamma_t0
-
-            temp1 = torch.dot(y_t, s_t)
-            temp2 = torch.dot(s_t, s_t)/h_t0
-
-            if temp1 < 0.25 * temp2:
-                zeta_t = 0.75 * temp2/(temp2-temp1)
-            else:
-                zeta_t = 1
-            zeta_t = 1
-            # print("zeta_t:",zeta_t)
-            y_bar_t = zeta_t*y_t+(1-zeta_t)*s_t/h_t0
-
-            rho_t = 1.0 / torch.dot(y_bar_t, s_t)
-
-            if len(s_list) == history_size:
-                s_list.pop(0)
-                y_bar_list.pop(0)
-                rho_list.pop(0)
-            s_list.append(s_t)
-            y_bar_list.append(y_bar_t)
-            rho_list.append(rho_t)
-
-            grad_new_norm = torch.norm(grad_new)
-            grad_norm = torch.norm(grad)
-            # if grad_new_norm < 1e-5:
-            #     break
-            # print(f'Iteration {t}, theta = {theta}, grad_norm = {grad_norm}')
-
-            # if grad_new_norm<grad_norm*0.5:
-            #     step_size=step_size*1.5
-            # elif grad_new_norm>grad_norm:
-            #     step_size=step_size*0.5
-            # print(step_size)
-            params = params_new
-            grad = grad_new
-            grad_noise = grad+noise
-            # params=params-torch.mul(grad_noise,step_size)
-            params_list.append(params)
-            if t % 10 == 0:
-                # print("theta,",theta.numpy())
-                print(
-                    f'Iteration {t}, theta = {theta.numpy()}, grad_norm = {grad_norm}')
-
-        return params_list
-
-    def de_opimize_stage1(self, initial_params_list: list[torch.Tensor], T: int):
-        step_size = 0.2
-        epsilon = 0.01
-        length = initial_params_list[0].shape[0]
-
-        def local_grads(params_Mstack: torch.Tensor):
-            grad_Mstack = torch.zeros((self.J*length, 1), dtype=torch.double)
-            for j in range(self.J):
-                _, gradf = self.local_fun_wrapper(j)
-                params = np.squeeze(
-                    params_Mstack[(length*j):(length*(j+1)), :].numpy())
-                local_gad = gradf(params).reshape(-1, 1)
-                grad_Mstack[(length*j):(length*(j+1)),
-                            :] = torch.tensor(local_gad, dtype=torch.double)
-            return grad_Mstack
-
-        def com_grads(params_Mstack: torch.Tensor):
-            grad_Mstack = torch.zeros((self.J*length, 1), dtype=torch.double)
-            _, gradf = self.com_fun_wrapper()
-            for j in range(self.J):
-                params = np.squeeze(
-                    params_Mstack[(length*j):(length*(j+1)), :].numpy())
-                local_gad = gradf(params).reshape(-1, 1)
-                grad_Mstack[(length*j):(length*(j+1)),
-                            :] = torch.tensor(local_gad, dtype=torch.double)
-            return grad_Mstack
-
-        def weights_kron_f(num, iter=1):
-            weight = self.weights
-            for i in range(iter):
-                weight = weight@weight
-            weights_kron = torch.kron(
-                weight, torch.eye(num, dtype=torch.double))
-            return weights_kron
-
-        params_Mstack = torch.zeros((self.J*length, 1), dtype=torch.double)
-        for j in range(self.J):
-            params_Mstack[(length*j):(length*(j+1)),
-                          :] = initial_params_list[j]
-
-        params_Mstack = weights_kron_f(length)@params_Mstack
-        params_Mstack_list = [params_Mstack]
-
-        for t in range(T):
-            _, _, _, _, theta = self.vector2arguments(
-                params_Mstack[0:length].squeeze())
-
-            print("theta,", theta.numpy())
-            step_size = torch.ones((length, 1))*2
-            step_size[-2] = 100
-            step_size[-1] = 3
-            noise = torch.randn(size=(length*self.J, 1))*epsilon/length
-            if t == 0:
-                y_local_grad = weights_kron_f(
-                    length)@local_grads(params_Mstack_list[t])
-            else:
-                y_local_grad_temp = torch.zeros(
-                    (length*self.J, 1), dtype=torch.double)
-                y_t = local_grads(params_Mstack_list[t])
-                y_t_1 = local_grads(params_Mstack_list[t-1])
-                for j in range(self.J):
-                    tempv = torch.zeros((length, 1), dtype=torch.double)
-                    for i in range(self.J):
-                        tempv += self.weights[j, i]*(y_local_grad[(length*i):(length*(1+i)), :]+y_t[(
-                            length*i):(length*(1+i)), :]-y_t_1[(length*i):(length*(1+i)), :])
-                    y_local_grad_temp[(length*j):(length*(j+1)), :] = tempv
-                y_local_grad = y_local_grad_temp
-                # y_local_grad=weights_kron_f(length)@(y_local_grad+local_grads(params_Mstack_list[t])-local_grads(params_Mstack_list[t-1]))
-            y_grad = (y_local_grad*self.J +
-                      com_grads(params_Mstack_list[t]))/10**4
-            y_grad_noise = y_grad  # +noise
-            params_Mstack_temp = torch.zeros(
-                (length*self.J, 1), dtype=torch.double)
-            for j in range(self.J):
-                tempv = torch.zeros((length, 1), dtype=torch.double)
-                for i in range(self.J):
-                    tempv += self.weights[j, i]*(params_Mstack[(length*i):(length*(1+i)), :]-torch.mul(
-                        y_grad_noise[(length*i):(length*(1+i)), :], step_size))
-                params_Mstack_temp[(length*j):(length*(j+1)), :] = tempv
-            params_Mstack = params_Mstack_temp
-            # params_Mstack=weights_kron_f(length)@(params_Mstack-step_size*y_grad_noise)
-            params_Mstack_list.append(params_Mstack)
-            print(y_grad[5156:5158, 0].numpy())
-
-        return params_Mstack_list
-
     def de_optimize_stage2(self, mu_list: list[torch.Tensor], Sigma_list: list[torch.Tensor], beta_list: list[torch.Tensor], delta_list: list[torch.Tensor], theta_list: list[torch.Tensor], T: int, weights_round=4, seed=2024):
         torch.manual_seed(seed)
         # self.weights=torch.ones((self.J,self.J),dtype=torch.double)/self.J
@@ -1452,19 +1182,14 @@ class GPPEstimation:
     #
                 step_size = 1
                 shrink_rate = 0.5
-                # m=0.1
                 Continue = True
-                # f_value=y_value_f(mu_lists[t+1],Sigma_lists[t+1],beta_lists[t+1],delta_lists[t+1],theta_list)*self.J+com_value_f(mu_lists[t+1],Sigma_lists[t+1],theta_list)
-                # theta_Mstack_new=torch.tensordot(theta_Mstack-step_size*invh_m_grad_Mstack, weights, dims=1)
-                # theta_list_new=Mstack2list(theta_Mstack_new)
-                # theta_list_p=theta_list.copy()
-                # theta_list=theta_list_new
+            
 
                 while Continue:
                     theta_Mstack_new = torch.tensordot(
                         theta_Mstack-step_size*invh_m_grad_Mstack, self.weights, dims=1)
                     theta_list_new = Mstack2list(theta_Mstack_new)
-                    if torch.all(theta_Mstack_new > 0.05):
+                    if torch.all(theta_Mstack_new > 0.005):
 
                         if s >= 1 and step_size > 0.0001 and torch.norm(torch.mean(grad_theta_Mstack, dim=1)) >= torch.norm(torch.mean(grad_theta_Mstack_p, dim=1)):
                             step_size *= shrink_rate
@@ -1478,29 +1203,9 @@ class GPPEstimation:
                         else:
                             theta_Mstack = theta_Mstack+noise
                             Continue = False
-
-                # while Continue:
-                #     theta_Mstack_new=torch.tensordot(theta_Mstack-step_size*invh_m_grad_Mstack, self.weights, dims=1)
-                #     theta_list_new=Mstack2list(theta_Mstack_new)
-                #     if torch.all(theta_Mstack_new>0.005):
-                #         f_value_new=y_value_f(mu_lists[t+1],Sigma_lists[t+1],beta_lists[t+1],delta_lists[t+1],theta_list_new)*self.J+com_value_f(mu_lists[t+1],Sigma_lists[t+1],theta_list_new)
-                #         if f_value_new>f_value-m*step_size*torch.dot(torch.mean(grad_theta_Mstack, dim=1),torch.mean(invh_m_grad_Mstack, dim=1)):
-                #         #if f_value_new>f_value+10:
-                #             step_size*=shrink_rate
-                #         else:
-                #            theta_list_p=theta_list.copy()
-                #            theta_list=theta_list_new
-                #            Continue=False
-                #     else:
-                #         if step_size>1e-4:
-                #             step_size*=shrink_rate
-                #         else:
-                #             theta_Mstack=theta_Mstack+noise
-                #             Continue=False
+               
                 #print(f"theta:{torch.mean(theta_Mstack,dim=1).numpy()},gradient:{torch.mean(grad_theta_Mstack,dim=1).numpy()},norm of grad:{torch.norm(torch.mean(grad_theta_Mstack,dim=1)).numpy()}")
-                # print(torch.norm(torch.mean(grad_theta_Mstack,dim=1)))
-                # if torch.norm(torch.mean(grad_theta_Mstack,dim=1))<1e-4:
-                #     break
+                
                 if s >= 6 and torch.norm(torch.mean(grad_theta_Mstack, dim=1)-torch.mean(grad_theta_Mstack_p, dim=1)) < 1e-4:
                     break
                 grad_theta_Mstack_p = grad_theta_Mstack
@@ -1564,13 +1269,7 @@ class GPPEstimation:
             y_XTX += results[j]
         y_XTX = y_XTX/self.J
 
-        # #non-parallel
-        # y_XTX=torch.zeros((self.p,self.p),dtype=torch.double)
-        # for j in range(self.J):
-        #     local_X=local_X_f(j)
-        #     y_XTX+=local_X.T@local_X
-        # y_XTX=y_XTX/self.J
-
+    
         def y_mu_f_parallel(beta, theta):
             y_mu_M = torch.zeros((self.m, 1), dtype=torch.double)
 
@@ -1589,14 +1288,6 @@ class GPPEstimation:
             y_mu_M = y_mu_M/self.J
             return y_mu_M
 
-        def y_mu_f(beta, theta):
-            y_mu_M = torch.zeros((self.m, 1), dtype=torch.double)
-            for j in range(self.J):
-                local_B = local_B_f(j, theta)
-                local_erorrV = local_erorrV_f(j, beta)
-                y_mu_M += -local_B.T@local_erorrV
-            y_mu_M = y_mu_M/self.J
-            return y_mu_M
 
         def y_Sigma_f_parallel(theta):
             y_Sigma_M = torch.zeros((self.m, self.m), dtype=torch.double)
@@ -1615,13 +1306,6 @@ class GPPEstimation:
             y_Sigma_M = y_Sigma_M/self.J
             return y_Sigma_M
 
-        def y_Sigma_f(theta):
-            y_Sigma_M = torch.zeros((self.m, self.m), dtype=torch.double)
-            for j in range(self.J):
-                local_B = local_B_f(j, theta)
-                y_Sigma_M += local_B.T@local_B
-            y_Sigma_M = y_Sigma_M/self.J
-            return y_Sigma_M
 
         def y_beta_f_parallel(mu, theta):
             y_beta_M = torch.zeros((self.p, 1), dtype=torch.double)
@@ -1642,15 +1326,6 @@ class GPPEstimation:
             y_beta_M = y_beta_M/self.J
             return y_beta_M
 
-        def y_beta_f(mu, theta):
-            y_beta_M = torch.zeros((self.p, 1), dtype=torch.double)
-            for j in range(self.J):
-                local_X = local_X_f(j)
-                local_B = local_B_f(j, theta)
-                local_z = local_z_f(j)
-                y_beta_M += local_X.T@(local_z-local_B@mu)
-            y_beta_M = y_beta_M/self.J
-            return y_beta_M
 
         def y_delta_f_parallel(mu, Sigma, beta, theta):
             y_delta = torch.zeros((1, 1), dtype=torch.double)
@@ -1675,39 +1350,6 @@ class GPPEstimation:
                 y_delta += results[j]
             y_delta = y_delta/self.J
             return y_delta
-
-        def y_delta_f(mu, Sigma, beta, theta):
-            y_delta = torch.zeros((1, 1), dtype=torch.double)
-            for j in range(self.J):
-                local_B = local_B_f(j, theta)
-                local_erorrV = local_erorrV_f(j, beta)
-                y_delta += torch.trace(local_B.T@local_B@(Sigma+mu@mu.T)) + \
-                    2*local_erorrV.T@local_B@mu+local_erorrV.T@local_erorrV
-            y_delta = y_delta/self.J
-            return y_delta
-
-        def y_value_f_parallel(mu, Sigma, beta, delta, theta):
-            y_value_M = torch.zeros((1, 1), dtype=torch.double)
-
-            def compute_j(j, mu_j, Sigma_j, beta_j, delta_j, theta_j):
-                local_value = self.local_value(
-                    j, mu_j, Sigma_j, beta_j, delta_j, theta_j)
-                return local_value
-            results = Parallel(n_jobs=job_num, backend=backend)(
-                delayed(compute_j)(j, mu, Sigma, beta, delta, theta) for j in range(self.J))
-            for j in range(self.J):
-                y_value_M += results[j].reshape(-1, 1)
-            y_value_M = y_value_M/self.J
-            return y_value_M
-
-        def y_value_f(mu, Sigma, beta, delta, theta):
-            y_value_M = torch.zeros((1, 1), dtype=torch.double)
-            for j in range(self.J):
-                local_value = self.local_value(
-                    j, mu, Sigma, beta, delta, theta)
-                y_value_M += local_value.reshape(-1, 1)
-            y_value_M = y_value_M/self.J
-            return y_value_M
 
         def y_theta_f_parallel(mu, Sigma, beta, delta, theta):
 
@@ -1759,14 +1401,6 @@ class GPPEstimation:
             y_theta_M = y_theta_M/self.J
             return y_theta_M
 
-        def y_theta_f(mu, Sigma, beta, delta, theta):
-            y_theta_M = torch.zeros((2, 1), dtype=torch.double)
-            for j in range(self.J):
-                local_g_theta = self.local_grad_theta(
-                    j, mu, Sigma, beta, delta, theta)
-                y_theta_M += local_g_theta.reshape(-1, 1)
-            y_theta_M = y_theta_M/self.J
-            return y_theta_M
 
         def y_hessian_theta_f_parallel(mu, Sigma, beta, delta, theta):
             hessian_theta_M = torch.zeros((2, 2), dtype=torch.double)
@@ -1782,21 +1416,6 @@ class GPPEstimation:
                 hessian_theta_M += local_h_theta
             hessian_theta_M = hessian_theta_M/self.J
             return hessian_theta_M
-
-        def y_hessian_theta_f(mu, Sigma, beta, delta, theta):
-            hessian_theta_M = torch.zeros((2, 2), dtype=torch.double)
-            for j in range(self.J):
-                local_h_theta = self.local_hessian_theta(
-                    j, mu, Sigma, beta, delta, theta)
-                hessian_theta_M += local_h_theta
-            hessian_theta_M = hessian_theta_M/self.J
-            return hessian_theta_M
-
-        def com_value_f(mu, Sigma, theta):
-            com_value_M = torch.zeros((1, 1), dtype=torch.double)
-            com_value = self.com_value(mu, Sigma, theta)
-            com_value_M = com_value.reshape(-1, 1)
-            return com_value_M
 
         def com_grad_theta_f(mu, Sigma, theta):
             com_grad_theta_M = torch.zeros((2, 1), dtype=torch.double)
@@ -1877,7 +1496,6 @@ class GPPEstimation:
 
                 modified_hess = eigenvectors@modified_eigenvalue_matrix@eigenvectors.T
 
-                noise = torch.randn(size=(2, 1))*0.01
 
                 invh_m_grad = torch.linalg.inv(modified_hess)@grad
                 if torch.norm(invh_m_grad) < 1e-5:
@@ -2145,3 +1763,50 @@ class GPPEstimation:
             second_grad = grad(gradients[i], delta_theta, retain_graph=True)[0]  # Second derivative
             hessian[i, :] = second_grad
         return hessian
+    
+    def Hessian_delta_theta_Expected(self, delta_theta: torch.Tensor,delta_theta_true: torch.Tensor):
+        #compute the Hessian of the log-likelihood function with respect to delta and theta
+    
+        local_locs_list = []
+        for data in self.dis_data:
+            # Extract the first two columns as local locations
+            local_locs = data[:, :2]
+            # Extract the third column as local z
+            local_locs_list.append(local_locs)
+        locs = torch.cat(local_locs_list, dim=0)
+        
+        
+        knots = self.knots
+        N = locs.shape[0]
+        
+        delta_theta = delta_theta.clone().detach().requires_grad_(True)
+        delta = delta_theta[0]
+        theta = delta_theta[1:]
+        
+        
+        
+
+
+        # Compute the kernel matrices
+        K = self.kernel(knots, knots, theta)
+        invK = torch.linalg.inv(K)
+        B = self.kernel(locs, knots, theta) @ invK
+
+        tempM = invK+delta*B.T@B
+        
+        theta_true = delta_theta_true[1:]
+        delta_true = delta_theta_true[0]
+        K_true = self.kernel(knots, knots, theta_true)
+        invK_true = torch.linalg.inv(K_true)
+        B_true: torch.Tensor = self.kernel(locs, knots, theta_true) @ invK_true
+        
+        
+        f_value = torch.logdet(tempM)+torch.logdet(K)-N*torch.log(delta)+N*delta/delta_true+delta*torch.trace(K_true@B_true.T@B_true)-delta**2/delta_true*torch.trace(torch.linalg.inv(tempM)@B.T@B)-delta**2*torch.trace(K_true@B_true.T@B@torch.linalg.inv(tempM)@B.T@B_true)
+        
+
+        gradients = grad(f_value, delta_theta, create_graph=True)[0]  # First derivative
+        hessian = torch.zeros((len(delta_theta), len(delta_theta)),dtype=torch.double)  # Initialize Hessian
+        for i in range(len(delta_theta)):
+            second_grad = grad(gradients[i], delta_theta, retain_graph=True)[0]  # Second derivative
+            hessian[i, :] = second_grad
+        return hessian/2
