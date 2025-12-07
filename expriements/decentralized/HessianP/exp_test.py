@@ -72,7 +72,9 @@ nu_lengths = [(0.5, 0.033), (0.5, 0.1), (0.5, 0.234),
               (1.5, 0.063*math.sqrt(3)), 
               (1.5, 0.148*math.sqrt(3))]
 
-results=[]
+#%%
+#nu_lengths = [(0.5, 0.033)]
+#results=[]
 for nu_length in nu_lengths:
     nu = nu_length[0]
     length_scale = nu_length[1]
@@ -86,25 +88,29 @@ for nu_length in nu_lengths:
     theta_true = torch.tensor([alpha_true, length_scale], dtype=torch.float64)
     parameters_true=torch.cat([beta_true,delta_true,theta_true])
     delta_theta_true=torch.cat([delta_true,theta_true])
-
+    
+    #deep copy
+    delta_theta=delta_theta_true.clone().detach()
+    
     min_eigenvalue_list=[]
-    for r in range(100):
+    for r in range(10):
         print(r, end=" ")
         gpp_estimation = construct(r, length_scale, nu)
-        Hessian = gpp_estimation.Hessian_delta_theta_Expected(delta_theta_true, delta_theta_true)
+        Hessian = gpp_estimation.Hessian_delta_theta_Expected(delta_theta,delta_theta_true)
         #Hessian[0,0] divided by N, and the rest divided by m
-        Hessian[0,0] = Hessian[0,0]/N
-        Hessian[0,1:] = Hessian[0,1:]/m
-        Hessian[1:,0] = Hessian[1:,0]/m
-        Hessian[1:,1:] = Hessian[1:,1:]/m
+        
+        Hessian_scaled=torch.zeros_like(Hessian)
+        Hessian_scaled[0,0] = Hessian[0,0]/N
+        Hessian_scaled[0,1:] = Hessian[0,1:]/m
+        Hessian_scaled[1:,0] = Hessian[1:,0]/m
+        Hessian_scaled[1:,1:] = Hessian[1:,1:]/m
+    
         #compute the minimum eigenvalue of Hessian
-        min_eigenvalue = torch.min(torch.linalg.eigvalsh(Hessian))
+        min_eigenvalue = torch.min(torch.linalg.eigvalsh(Hessian_scaled))
+        print(min_eigenvalue)
         min_eigenvalue_list.append(min_eigenvalue)
     min_eigenvalue_tensor = torch.stack(min_eigenvalue_list)
-    results.append(min_eigenvalue_tensor)
-
-with open("expriements/decentralized/HessianP/results_expected.pkl", "wb") as file:
-        pickle.dump(results, file)
+    
 
 
     # %%

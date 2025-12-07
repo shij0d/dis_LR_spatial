@@ -85,18 +85,23 @@ def estimate(r,J):
     delta=delta_list[0]
     theta=theta_list[0]
     num=len(mu_list)
+    num_effective=0
+    THRESHOLD=20
     if num>1:
         for j in range(1,num):
-            mu+=mu_list[j]
-            Sigma+=Sigma_list[j]
-            beta+=beta_list[j]
-            delta+=delta_list[j]
-            theta+=theta_list[j]
-    mu=mu/num
-    Sigma=Sigma/num
-    beta=beta/num
-    delta=delta/num
-    theta=theta/num
+            if theta_list[j].max()<THRESHOLD:
+                num_effective+=1
+                mu+=mu_list[j]
+                Sigma+=Sigma_list[j]
+                beta+=beta_list[j]
+                delta+=delta_list[j]
+                theta+=theta_list[j]
+                num_effective+=1
+    mu=mu/num_effective
+    Sigma=Sigma/num_effective
+    beta=beta/num_effective
+    delta=delta/num_effective
+    theta=theta/num_effective
     mu_list=[]
     Sigma_list=[]
     beta_list=[]
@@ -121,7 +126,7 @@ def estimate(r,J):
     return de_estimators,optimal_estimator
 
 num_cores = multiprocessing.cpu_count()
-Js=[10,20,40]
+Js=[20,40]
 #nu_lengths=[(1.5,0.148)]
 rs=[r for r in range(100)]
 for J in Js:

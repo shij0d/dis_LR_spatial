@@ -1464,7 +1464,7 @@ class GPPEstimation:
                     theta_Mstack_new = torch.tensordot(
                         theta_Mstack-step_size*invh_m_grad_Mstack, self.weights, dims=1)
                     theta_list_new = Mstack2list(theta_Mstack_new)
-                    if torch.all(theta_Mstack_new > 0.05):
+                    if torch.all(theta_Mstack_new > 0.005):
 
                         if s >= 1 and step_size > 0.0001 and torch.norm(torch.mean(grad_theta_Mstack, dim=1)) >= torch.norm(torch.mean(grad_theta_Mstack_p, dim=1)):
                             step_size *= shrink_rate
@@ -1497,7 +1497,7 @@ class GPPEstimation:
                 #         else:
                 #             theta_Mstack=theta_Mstack+noise
                 #             Continue=False
-                #print(f"theta:{torch.mean(theta_Mstack,dim=1).numpy()},gradient:{torch.mean(grad_theta_Mstack,dim=1).numpy()},norm of grad:{torch.norm(torch.mean(grad_theta_Mstack,dim=1)).numpy()}")
+                print(f"theta:{torch.mean(theta_Mstack,dim=1).numpy()},gradient:{torch.mean(grad_theta_Mstack,dim=1).numpy()},norm of grad:{torch.norm(torch.mean(grad_theta_Mstack,dim=1)).numpy()}")
                 # print(torch.norm(torch.mean(grad_theta_Mstack,dim=1)))
                 # if torch.norm(torch.mean(grad_theta_Mstack,dim=1))<1e-4:
                 #     break
@@ -2145,3 +2145,50 @@ class GPPEstimation:
             second_grad = grad(gradients[i], delta_theta, retain_graph=True)[0]  # Second derivative
             hessian[i, :] = second_grad
         return hessian
+    
+    def Hessian_delta_theta_Expected(self, delta_theta: torch.Tensor,delta_theta_true: torch.Tensor):
+        #compute the Hessian of the log-likelihood function with respect to delta and theta
+    
+        local_locs_list = []
+        for data in self.dis_data:
+            # Extract the first two columns as local locations
+            local_locs = data[:, :2]
+            # Extract the third column as local z
+            local_locs_list.append(local_locs)
+        locs = torch.cat(local_locs_list, dim=0)
+        
+        
+        knots = self.knots
+        N = locs.shape[0]
+        
+        delta_theta = delta_theta.clone().detach().requires_grad_(True)
+        delta = delta_theta[0]
+        theta = delta_theta[1:]
+        
+        
+        
+
+
+        # Compute the kernel matrices
+        K = self.kernel(knots, knots, theta)
+        invK = torch.linalg.inv(K)
+        B = self.kernel(locs, knots, theta) @ invK
+
+        tempM = invK+delta*B.T@B
+        
+        theta_true = delta_theta_true[1:]
+        delta_true = delta_theta_true[0]
+        K_true = self.kernel(knots, knots, theta_true)
+        invK_true = torch.linalg.inv(K_true)
+        B_true: torch.Tensor = self.kernel(locs, knots, theta_true) @ invK_true
+        
+        
+        f_value = torch.logdet(tempM)+torch.logdet(K)-N*torch.log(delta)+N*delta/delta_true+delta*torch.trace(K_true@B_true.T@B_true)-delta**2/delta_true*torch.trace(torch.linalg.inv(tempM)@B.T@B)-delta**2*torch.trace(K_true@B_true.T@B@torch.linalg.inv(tempM)@B.T@B_true)
+        
+
+        gradients = grad(f_value, delta_theta, create_graph=True)[0]  # First derivative
+        hessian = torch.zeros((len(delta_theta), len(delta_theta)),dtype=torch.double)  # Initialize Hessian
+        for i in range(len(delta_theta)):
+            second_grad = grad(gradients[i], delta_theta, retain_graph=True)[0]  # Second derivative
+            hessian[i, :] = second_grad
+        return hessian/2

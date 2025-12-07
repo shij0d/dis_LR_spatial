@@ -22,6 +22,18 @@ from functools import partial
 import multiprocessing
 import matplotlib.pyplot as plt
 from joblib import Parallel, delayed
+from golden_section_search_optimization import golden_section_search_optimization
+import time
+
+
+#cpu number
+cpu_number=multiprocessing.cpu_count()//6
+print(f"cpu number: {cpu_number}")
+os.environ["OMP_NUM_THREADS"] = str(cpu_number)  # For OpenMP (e.g., NumPy, scikit-learn)
+os.environ["MKL_NUM_THREADS"] = str(cpu_number)  # If you're using MKL-based libraries
+os.environ["OPENBLAS_NUM_THREADS"] = str(cpu_number)  # For OpenBLAS (NumPy, SciPy)
+os.environ["NUMEXPR_NUM_THREADS"] = str(cpu_number)  # For NumExpr (if used)
+
 
 SEED=2024
 
@@ -90,17 +102,25 @@ for sat in unique_satellites:
     
     #withoutX
     local_data=np.hstack((lats_sat.reshape(-1,1),lons_sat.reshape(-1,1),TPWs_sat.reshape(-1,1)))
-    # np.random.seed(SEED)
+    
+    np.random.seed(SEED)
     # local_shuffled_data = np.random.permutation(local_data)
     # local_data=local_shuffled_data[:20,:]
-    dis_data.append(local_data)
     
+    #sample 10% data
+    local_data=local_data[np.random.rand(local_data.shape[0])<0.1]
+    if local_data.shape[0]==0:
+        continue
+    dis_data.append(local_data)
+print(f"dis_data shape:{len(dis_data)}")
 #randomly 
 full_data=np.vstack(dis_data)#.data
 #full_data=full_data[:12000,:]
 #remove the mean
 beta=np.mean(full_data[:,2])
 full_data[:, 2] -= beta
+N=full_data.shape[0]
+print(f"full_data shape:{full_data.shape}")
 locations=full_data[:,:2]
 locations = [tuple(row) for row in locations]
 
@@ -114,29 +134,27 @@ for i,local_data in enumerate(dis_data):
 # num_parts = 5
 # dis_data = np.array_split(shuffled_data, num_parts)
 
+J=len(dis_data)
+con_pro=0.5
+er = generate_connected_erdos_renyi_graph(J, con_pro)
+adj_matrix=nx.adjacency_matrix(er).todense()
+np.fill_diagonal(adj_matrix, 1) 
+weights,_=optimal_weight_matrix(adj_matrix=adj_matrix)
+weights=torch.tensor(weights,dtype=torch.double)
+#weights = torch.ones((J,J),dtype=torch.float64)/J
+
+#grid knots
+# lats=np.arange(lat_min, lat_max,min_dis)
+# lons=np.arange(lon_min, lon_max,min_dis)
+# knots = [(lat, lon) for lat in lats for lon in lons]
+# random knots
+random.seed(SEED)
+m=100
+knots = random.sample(locations, m)
 
 #estimation
-def estimation(nu,min_dis):
-    J=len(dis_data)
-    con_pro=0.5
-    er = generate_connected_erdos_renyi_graph(J, con_pro)
-    adj_matrix=nx.adjacency_matrix(er).todense()
-    np.fill_diagonal(adj_matrix, 1)
-    weights,_=optimal_weight_matrix(adj_matrix=adj_matrix)
-    weights=torch.tensor(weights,dtype=torch.double)
-    #weights = torch.ones((J,J),dtype=torch.float64)/J
 
-    #grid knots
-    # lats=np.arange(lat_min, lat_max,min_dis)
-    # lons=np.arange(lon_min, lon_max,min_dis)
-    # knots = [(lat, lon) for lat in lats for lon in lons]
-    # random knots
-    random.seed(SEED)
-    m=100
-    knots = random.sample(locations, m)
-    
-
-    
+def MLE_f(nu):
     if nu==0.5:
         gpp_estimation = GPPEstimation(dis_data, partial(exponential_kernel,type="chordal"), knots, weights)
     elif nu==1.5:
@@ -144,27 +162,6 @@ def estimation(nu,min_dis):
     else:
         #matern_kernel_nu=matern_kernel_factory(nu)
         gpp_estimation = GPPEstimation(dis_data, partial(matern_kernel,nu=nu,type="chordal"), knots, weights)
-    
-    # beta_ini=torch.tensor(1,dtype=torch.float64)
-    # delta_ini=torch.tensor(1,dtype=torch.float64)
-    # alpha_ini=1
-    # length_scale_ini=0.5
-    # theta_ini=torch.tensor([alpha_ini,length_scale_ini],dtype=torch.float64)
-    # x_ini=gpp_estimation.argument2vector_lik(beta_ini,delta_ini,theta_ini)
-    
-    
-    # try:
-    #     mu,Sigma,beta,delta,theta,result=gpp_estimation.get_minimier(x_ini)
-    #     optimal_estimator=(mu,Sigma,beta,delta,theta,result)
-    #     file_path_save="real_data/optimal_estimator.pkl"
-    #     with open(file_path_save, "wb") as file:
-    #         pickle.dump(optimal_estimator, file)
-    #     print("global optimization succeed")
-    #     print(f"beta:{beta.squeeze().numpy()},delta:{delta.numpy()},theta:{theta.squeeze().numpy()}")
-    # except Exception:
-    #     optimal_estimator=("global minimization error")
-    #     print("global optimization failed")
-    
     
     
     beta_ini=None
@@ -174,32 +171,39 @@ def estimation(nu,min_dis):
     theta_ini=torch.tensor([alpha_ini,length_scale_ini],dtype=torch.float64)
     x_ini=gpp_estimation.argument2vector_lik(beta_ini,delta_ini,theta_ini)
     
-    try:
-        mu,Sigma,beta,delta,theta,result=gpp_estimation.get_minimier(x_ini)
-        optimal_estimator=(mu,Sigma,beta,delta,theta,result)
-        file_path_save="real_data/First_scenario/estimation/output/output/optimal_estimator.pkl"
-        with open(file_path_save, "wb") as file:
-            pickle.dump(optimal_estimator, file)
-        print("global optimization succeed")
-        print(f"delta:{delta.numpy()},theta:{theta.squeeze().numpy()}")
-    except Exception:
-        optimal_estimator=("global minimization error")
-        print("global optimization failed")
-  
-    try:
+    
+    _,_,_,delta,theta,result=gpp_estimation.get_minimier(x_ini)
+    optimal_estimator=(beta,delta,theta,result)
+    file_path_save=f"real_data/First_scenario/estimate_nu/output/02_2/optimal_estimator_nu_{nu:.2f}.pkl"
+    with open(file_path_save, "wb") as file:
+        pickle.dump(optimal_estimator, file)
+    #print("global optimization succeed")
+    print(f"nu:{nu},delta:{delta.numpy()},theta:{theta.squeeze().numpy()},MLE_f:{result.fun}")
+    return result.fun
 
-        mu_list,Sigma_list,beta_list,delta_list,theta_list,_,_=gpp_estimation.get_local_minimizers_parallel(x_ini,job_num=-1)
-        local_estimators=(mu_list,Sigma_list,beta_list,delta_list,theta_list)
-        file_path_save="real_data/First_scenario/estimation/output/local_estimators.pkl"
-        with open(file_path_save, "wb") as file:
-            pickle.dump(local_estimators, file)
-        print("local optimization succeed")
-    except Exception:
-        print("local optimization failed")
-        return ("local minimization error")
-    if len(mu_list)==0:
-        print("local optimization failed")
-        return ("local minimization error",optimal_estimator)   
+
+
+  
+def De_f(nu):
+    
+    if nu==0.5:
+        gpp_estimation = GPPEstimation(dis_data, partial(exponential_kernel,type="chordal"), knots, weights)
+    elif nu==1.5:
+        gpp_estimation = GPPEstimation(dis_data, partial(onedif_kernel,type="chordal"), knots, weights)
+    else:
+        #matern_kernel_nu=matern_kernel_factory(nu)
+        gpp_estimation = GPPEstimation(dis_data, partial(matern_kernel,nu=nu,type="chordal"), knots, weights)
+    beta_ini=None
+    delta_ini=torch.tensor(1,dtype=torch.float64)
+    alpha_ini=10
+    length_scale_ini=0.5
+    theta_ini=torch.tensor([alpha_ini,length_scale_ini],dtype=torch.float64)
+    x_ini=gpp_estimation.argument2vector_lik(beta_ini,delta_ini,theta_ini)
+
+    time_start=time.time()
+    mu_list,Sigma_list,beta_list,delta_list,theta_list,_,_=gpp_estimation.get_local_minimizers_parallel(x_ini,job_num=-1)
+    time_end=time.time()
+    print(f"time to get local minimizers: {time_end-time_start}")
     
     mu=mu_list[0]
     Sigma=Sigma_list[0]
@@ -214,34 +218,15 @@ def estimation(nu,min_dis):
             #beta+=beta_list[j]
             delta+=delta_list[j]
             theta+=theta_list[j]
+    else:
+        raise ValueError("local optimization failed")
     mu=mu/num
     Sigma=Sigma/num
     beta=None
     delta=delta/num
     theta=theta/num
-    average_estimator=(mu,Sigma,beta,delta,theta)
-    print(f"delta:{delta.numpy()},theta:{theta.squeeze().numpy()}")
+    print(f"initial: delta:{delta.numpy()},theta:{theta.squeeze().numpy()}")
     
-    file_path_save="real_data/First_scenario/estimation/output/average_estimator.pkl"
-    with open(file_path_save, "wb") as file:
-        pickle.dump(average_estimator, file)
-    print(f"delta:{delta.numpy()},theta:{theta.squeeze().numpy()}")
-    
-    # Read data from the pickle file
-    file_path = "real_data/First_scenario/estimation/output/optimal_estimator.pkl"
-    with open(file_path, "rb") as file:
-        optimal_estimator = pickle.load(file)
-    mu,Sigma,beta,delta,theta,_=optimal_estimator
-    print(f"delta:{delta.numpy()},theta:{theta.squeeze().numpy()}")
-    
-    #Read data from the pickle file
-    file_path = "real_data/First_scenario/estimation/output/average_estimator.pkl"
-    with open(file_path, "rb") as file:
-        average_estimator = pickle.load(file)
-    mu,Sigma,beta,delta,theta=average_estimator
-    
-    print(f"delta:{delta.numpy()},theta:{theta.squeeze().numpy()}")
-    #beta=beta.reshape(-1,1)
     mu_list=[]
     Sigma_list=[]
     beta_list=[]
@@ -255,23 +240,25 @@ def estimation(nu,min_dis):
         theta_list.append(theta)
     
     
-    T=100
-    #de_estimators=gpp_estimation.de_optimize_stage2(mu_list,Sigma_list,beta_list,delta_list,theta_list,T=T,weights_round=6)
-    try:
-        de_estimators=gpp_estimation.de_optimize_stage2(mu_list,Sigma_list,beta_list,delta_list,theta_list,T=T,weights_round=6)
-        print("dis optimization succeed")
-    except Exception:
-        print("dis optimization failed")
-        return ("distributed minimization error",optimal_estimator)
-  
-    return de_estimators,optimal_estimator
+    T=20
+   
+    de_estimators=gpp_estimation.de_optimize_stage2(mu_list,Sigma_list,beta_list,delta_list,theta_list,T=T,weights_round=6)
+    de_estimators_simple=(nu,de_estimators[3],de_estimators[4],de_estimators[6])
+    fun=(de_estimators[6]-m)/N
+    theta=de_estimators[4][-1][0].numpy()
+    print(f"nu:{nu},theta:{theta},De_f:{fun}")
+    file_path_save=f"real_data/First_scenario/estimate_nu/output/02_2/de_estimator_simple_nu_{nu:.2f}.pkl"
+    with open(file_path_save, "wb") as file:
+        pickle.dump(de_estimators_simple, file)
+    return fun
 
 
 
 
 
-result=estimation(1.5,3)
-
-file_path_save="real_data/First_scenario/estimation/output/result.pkl"
-with open(file_path_save, "wb") as file:
-    pickle.dump(result, file)
+L=0.2
+R=2
+epsilon=0.05
+MLE_nu=golden_section_search_optimization(MLE_f,L,R,epsilon)
+De_nu=golden_section_search_optimization(De_f,L,R,epsilon)
+print(f"MLE_nu:{MLE_nu},De_nu:{De_nu}")

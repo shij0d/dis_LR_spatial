@@ -1,11 +1,4 @@
-#%%
-import sys
-import time
 
-# Add the path where your Python packages are located
-#sys.path.append('/home/shij0d/Documents/Dis_Spatial')
-
-import unittest
 import torch
 from scipy.optimize import minimize
 from src.estimation_torch import GPPEstimation  # Assuming your class is defined in gppestimation.py
@@ -73,13 +66,14 @@ def estimate(r,length_scale,nu):
         optimal_estimator=(mu,Sigma,beta,delta,theta,result)
         print("global optimization succeed")
         print(f"beta:{beta.squeeze().numpy()},delta:{delta.numpy()},theta:{theta.squeeze().numpy()}")
+        print(result)
     except Exception:
         optimal_estimator=(r, "global minimization error")
         print("global optimization failed")
-  
+    return 0
     try:
         
-        mu_list,Sigma_list,beta_list,delta_list,theta_list,_,_=gpp_estimation.get_local_minimizers_parallel(x_true,job_num=-1)
+        mu_list,Sigma_list,beta_list,delta_list,theta_list,_,_=gpp_estimation.get_local_minimizers_parallel(x_true,-1)
 
         print("local optimization succeed")
     except Exception:
@@ -122,7 +116,7 @@ def estimate(r,length_scale,nu):
     
    
     T=100
-    de_estimators=gpp_estimation.de_optimize_stage2(mu_list,Sigma_list,beta_list,delta_list,theta_list,T=T,weights_round=6)
+   
     try:
         de_estimators=gpp_estimation.de_optimize_stage2(mu_list,Sigma_list,beta_list,delta_list,theta_list,T=T,weights_round=6)
         print("dis optimization succeed")
@@ -132,7 +126,9 @@ def estimate(r,length_scale,nu):
   
     return de_estimators,optimal_estimator
 nu_lengths=[(0.5,0.033),(0.5,0.1),(0.5,0.234),(1.5,0.021*math.sqrt(3)),(1.5,0.063*math.sqrt(3)),(1.5,0.148*math.sqrt(3))]
+nu_lengths=[nu_lengths[3]]
 rs=[r for r in range(100)]
+#rs=[8]
 for nu_length in nu_lengths:
     nu=nu_length[0]
     
@@ -143,18 +139,7 @@ for nu_length in nu_lengths:
         length_scale_act=length_scale
     print(f"nu:{nu},length_scale:{length_scale_act}")
     estimate_l=partial(estimate,length_scale=length_scale,nu=nu)
-
-    
-    
-    results = [None] * len(rs)
-    # # Parallel execution for the list of rs, while maintaining the index (i)
-    results = Parallel(n_jobs=-1)(
-        delayed(lambda i, r: (i, estimate_l(r)))(i, r) for i, r in enumerate(rs)
-    )
-    # Assign results based on the index to maintain order
-    for i, result in results:
-        results[i] = result
-    with open(f'expriements/decentralized/varying_parameter/more_irregular_rerun/nu_{nu}_length_scale_{length_scale_act}_memeff.pkl', 'wb') as f:
-        pickle.dump(results, f)
+    r=1
+    estimate_l(r)
 
     

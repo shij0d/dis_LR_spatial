@@ -122,7 +122,6 @@ def estimate(r,length_scale,nu):
     
    
     T=100
-    de_estimators=gpp_estimation.de_optimize_stage2(mu_list,Sigma_list,beta_list,delta_list,theta_list,T=T,weights_round=6)
     try:
         de_estimators=gpp_estimation.de_optimize_stage2(mu_list,Sigma_list,beta_list,delta_list,theta_list,T=T,weights_round=6)
         print("dis optimization succeed")
@@ -131,30 +130,10 @@ def estimate(r,length_scale,nu):
         return (r, "distributed minimization error")
   
     return de_estimators,optimal_estimator
-nu_lengths=[(0.5,0.033),(0.5,0.1),(0.5,0.234),(1.5,0.021*math.sqrt(3)),(1.5,0.063*math.sqrt(3)),(1.5,0.148*math.sqrt(3))]
-rs=[r for r in range(100)]
-for nu_length in nu_lengths:
-    nu=nu_length[0]
-    
-    length_scale=nu_length[1]
-    if nu==1.5:
-        length_scale_act=length_scale/math.sqrt(3)
-    else:
-        length_scale_act=length_scale
-    print(f"nu:{nu},length_scale:{length_scale_act}")
-    estimate_l=partial(estimate,length_scale=length_scale,nu=nu)
+nu_length_rs=[(0.5,0.033,62),(1.5,0.021*math.sqrt(3),10),(1.5,0.021*math.sqrt(3),98)]
 
-    
-    
-    results = [None] * len(rs)
-    # # Parallel execution for the list of rs, while maintaining the index (i)
-    results = Parallel(n_jobs=-1)(
-        delayed(lambda i, r: (i, estimate_l(r)))(i, r) for i, r in enumerate(rs)
-    )
-    # Assign results based on the index to maintain order
-    for i, result in results:
-        results[i] = result
-    with open(f'expriements/decentralized/varying_parameter/more_irregular_rerun/nu_{nu}_length_scale_{length_scale_act}_memeff.pkl', 'wb') as f:
+results=Parallel(n_jobs=-1)(delayed(estimate)(nu_length_r[2],nu_length_r[1],nu_length_r[0]) for nu_length_r in nu_length_rs)
+
+with open(f'expriements/decentralized/varying_parameter/more_irregular/correct_memeff.pkl', 'wb') as f:
         pickle.dump(results, f)
-
     

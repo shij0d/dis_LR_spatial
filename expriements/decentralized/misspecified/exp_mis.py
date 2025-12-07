@@ -124,7 +124,6 @@ def estimate(r,length_scale,nu,rank):
 #estimate(0,0.051*math.sqrt(5),2.5,100)
 rank=300
 nu_lengths=[(0.5,0.1),(0.5,0.234),(1.5,0.063*math.sqrt(3)),(1.5,0.148*math.sqrt(3)),(2.5,0.051*math.sqrt(5)),(2.5,0.118*math.sqrt(5))]
-nu_lengths=[(2.5,0.051*math.sqrt(5)),(2.5,0.118*math.sqrt(5))]
 for nu_length in nu_lengths:
     nu=nu_length[0]
     

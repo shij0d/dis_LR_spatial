@@ -1231,7 +1231,7 @@ class GPPEstimation:
             Sigma_list_p=Sigma_list
             # if t%10==0:
             #     print(f"iteration:{t}", end=', ')
-            print(f"iteration:{t}")
+            #print(f"iteration:{t}")
             #mu and Sigma
             if t==0:
                 y_mu_Mstack=torch.tensordot(y_mu_f_parallel(beta_lists[0],theta_lists[0]), self.weights, dims=1)
@@ -1426,7 +1426,8 @@ class GPPEstimation:
                 #         else:
                 #             theta_Mstack=theta_Mstack+noise
                 #             Continue=False 
-                print(f"theta:{torch.mean(theta_Mstack,dim=1).numpy()},gradient:{torch.mean(grad_theta_Mstack,dim=1).numpy()},norm of grad:{torch.norm(torch.mean(grad_theta_Mstack,dim=1)).numpy()}")
+                if t%10==0 and s==6:
+                    print(f"t:{t},theta:{torch.mean(theta_Mstack,dim=1).numpy()},gradient:{torch.mean(grad_theta_Mstack,dim=1).numpy()},norm of grad:{torch.norm(torch.mean(grad_theta_Mstack,dim=1)).numpy()}")
                 # print(torch.norm(torch.mean(grad_theta_Mstack,dim=1)))
                 # if torch.norm(torch.mean(grad_theta_Mstack,dim=1))<1e-4:
                 #     break
@@ -1437,9 +1438,9 @@ class GPPEstimation:
             s_list.append(s)
         
         f_value=y_value_f(mu_list,Sigma_list,beta_lists[T],delta_lists[T],theta_lists[T])*self.J+com_value_f(mu_list,Sigma_list,theta_lists[T])
-        print(f_value)
+        #print(f_value.item())
 
-        return mu_list,Sigma_list,beta_lists,delta_lists,theta_lists,s_list,f_value
+        return mu_list,Sigma_list,beta_lists,delta_lists,theta_lists,s_list,f_value.item()
 
     def ce_optimize_stage2(self,mu:torch.Tensor,Sigma:torch.Tensor,beta:torch.Tensor,delta:torch.Tensor,theta:torch.Tensor,T:int,job_num,seed=2024,thread_num=None,backend='threading'):
         torch.manual_seed(seed)
