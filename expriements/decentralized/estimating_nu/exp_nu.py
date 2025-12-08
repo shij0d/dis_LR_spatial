@@ -1,27 +1,15 @@
 #%%
-#import sys
-
-
-## Add the path where your Python packages are located
-#sys.path.append('/home/shij0d/Documents/Dis_Spatial')
-
-import unittest
 import torch
-from scipy.optimize import minimize
-from src.estimation_torch import GPPEstimation  # Assuming your class is defined in gppestimation.py
+from src.estimation_torch import GPPEstimation  
 from src.generation import GPPSampleGenerator
 from sklearn.gaussian_process.kernels import Matern
 import math
-from src.kernel import exponential_kernel,onedif_kernel,matern_kernel_factory
+from src.kernel import matern_kernel_factory
 from src.networks import generate_connected_erdos_renyi_graph
 from src.weights import optimal_weight_matrix
 import networkx as nx
 import numpy as np
-import random
 import pickle
-from functools import partial
-import multiprocessing
-import matplotlib.pyplot as plt
 from joblib import Parallel, delayed
 
 #%%
@@ -45,7 +33,6 @@ def estimate(r,nu):
     np.fill_diagonal(adj_matrix, 1)
     weights,_=optimal_weight_matrix(adj_matrix=adj_matrix)
     weights=torch.tensor(weights,dtype=torch.double)
-    #weights = torch.ones((J,J),dtype=torch.float64)/J
 
     kernel=alpha*Matern(length_scale=length_scale,nu=nu_true)
     sampler=GPPSampleGenerator(num=N,min_dis=mis_dis,extent=extent,kernel=kernel,coefficients=coefficients,noise=noise_level,seed=r)
@@ -53,16 +40,6 @@ def estimate(r,nu):
     dis_data=sampler.data_split(data,J)
     
     
-    # if nu==0.5:
-    #     gpp_estimation = GPPEstimation(dis_data, exponential_kernel, knots, weights)
-    # elif nu==1.5:
-    #     gpp_estimation = GPPEstimation(dis_data, onedif_kernel, knots, weights)
-    # else:
-    #nus=np.arange(0.2, 1, 0.1)
-    #nus=np.arange(1.4, 1.6, 0.1)
-    #estimator_de_op_list=[]
-    #for nu in nus:
-        #print(f"nu:{nu}")
     matern_kernel_nu=matern_kernel_factory(nu)
     gpp_estimation = GPPEstimation(dis_data, matern_kernel_nu, knots, weights)
     
@@ -137,9 +114,9 @@ def estimate(r,nu):
             
     return de_estimator,optimal_estimator
 
-#estimate(0)
 
-rs=[r for r in range(60,100)]
+# run rs=[r for r in range(25)] and rs=[r for r in range(25,60)] in other machine to accelerate the computation
+rs=[r for r in range(60,100)] 
 nus=np.arange(0.2, 1, 0.1)
 # Parallel execution for the list of rs, while maintaining the index (i)
 results = Parallel(n_jobs=-1)(

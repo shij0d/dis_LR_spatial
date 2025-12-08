@@ -29,3 +29,7 @@ nonconvex optimization/
 test/
 
 expriements/centralized/
+
+expriements/decentralized/estimating_nu/exp.py
+
+expriements/decentralized/estimating_nu/test.py

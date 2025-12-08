@@ -1,14 +1,6 @@
-# %%
-#import sys
-#sys.path.append('/home/shij0d/Documents/Dis_Spatial')
 
 from src.kernel import exponential_kernel, onedif_kernel
-from joblib import Parallel, delayed
-import matplotlib.pyplot as plt
-import multiprocessing
-from functools import partial
 import pickle
-import random
 import numpy as np
 import networkx as nx
 from src.weights import optimal_weight_matrix
@@ -18,11 +10,7 @@ from sklearn.gaussian_process.kernels import Matern
 from src.generation import GPPSampleGenerator
 # Assuming your class is defined in gppestimation.py
 from src.estimation_torch import GPPEstimation
-from scipy.optimize import minimize
 import torch
-import unittest
-import sys
-import time
 import scipy.stats as stats
 # Add the path where your Python packages are located
 
@@ -83,32 +71,15 @@ alpha_true = 1
 theta_true = torch.tensor([alpha_true, length_scale], dtype=torch.float64)
 parameters_true=torch.cat([beta_true,delta_true,theta_true])
 
-# gpp_estimation = construct(0, length_scale, nu)
-# beta = torch.tensor([-1, 2, 3, -2, 1], dtype=torch.float64)
-# delta = torch.tensor(0.25, dtype=torch.float64)
-# alpha = 1
-# theta = torch.tensor([alpha, length_scale], dtype=torch.float64)
-# V_matrices = gpp_estimation.ce_asy_variance_autodif(beta, delta, theta, -1)
 
-# asy_variance_beta = torch.linalg.inv(V_matrices[0])/N
-# asy_variance_delta = 1/V_matrices[1]/N
-# asy_variance_theta = torch.linalg.inv(V_matrices[2])/m
-# std_list = [torch.sqrt(torch.diag(asy_variance_beta)),
-#             torch.sqrt(asy_variance_delta),
-#             torch.sqrt(torch.diag(asy_variance_theta))]
 
 with open(f'expriements/decentralized/varying_parameter/more_irregular/nu_{nu}_length_scale_{length_scale}_memeff.pkl', 'rb') as f:
     results = pickle.load(f)
-error_rep = []
 beta_list = []
 delta_list = []
 theta_list = []
 std_list=[]
 for r in range(100):
-    print(r, end=" ")
-    if type(results[r][1]) == str or type(results[r][1][1]) == str:
-        error_rep.append(r)
-        continue
     gpp_estimation = construct(r, length_scale, nu)
 
     # beta
