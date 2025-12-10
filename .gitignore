@@ -31,3 +31,6 @@ real_data/Second_scenario/time_com_varying_m/initial_fixed
 real_data/real_debug.py
 real_data/real_penguin.py
 real_data/real_plot.py
+real_data/real_depreciated.py
+real_data/real_MRA_time_com.py
+real_data/real_prediction.py
