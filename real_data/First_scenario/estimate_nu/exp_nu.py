@@ -155,6 +155,7 @@ knots = random.sample(locations, m)
 #estimation
 
 def MLE_f(nu):
+    print(f"nu:{nu}")
     if nu==0.5:
         gpp_estimation = GPPEstimation(dis_data, partial(exponential_kernel,type="chordal"), knots, weights)
     elif nu==1.5:
@@ -174,7 +175,7 @@ def MLE_f(nu):
     
     _,_,_,delta,theta,result=gpp_estimation.get_minimier(x_ini)
     optimal_estimator=(beta,delta,theta,result)
-    file_path_save=f"real_data/First_scenario/estimate_nu/output/02_2/optimal_estimator_nu_{nu:.2f}.pkl"
+    file_path_save=f"real_data/First_scenario/estimate_nu/output/02_90/optimal_estimator_nu_{nu:.2f}.pkl"
     with open(file_path_save, "wb") as file:
         pickle.dump(optimal_estimator, file)
     #print("global optimization succeed")
@@ -185,7 +186,7 @@ def MLE_f(nu):
 
   
 def De_f(nu):
-    
+    print(f"nu:{nu}")
     if nu==0.5:
         gpp_estimation = GPPEstimation(dis_data, partial(exponential_kernel,type="chordal"), knots, weights)
     elif nu==1.5:
@@ -247,7 +248,7 @@ def De_f(nu):
     fun=(de_estimators[6]-m)/N
     theta=de_estimators[4][-1][0].numpy()
     print(f"nu:{nu},theta:{theta},De_f:{fun}")
-    file_path_save=f"real_data/First_scenario/estimate_nu/output/02_2/de_estimator_simple_nu_{nu:.2f}.pkl"
+    file_path_save=f"real_data/First_scenario/estimate_nu/output/02_90/de_estimator_simple_nu_{nu:.2f}.pkl"
     with open(file_path_save, "wb") as file:
         pickle.dump(de_estimators_simple, file)
     return fun
@@ -257,7 +258,7 @@ def De_f(nu):
 
 
 L=0.2
-R=2
+R=90
 epsilon=0.05
 MLE_nu=golden_section_search_optimization(MLE_f,L,R,epsilon)
 De_nu=golden_section_search_optimization(De_f,L,R,epsilon)

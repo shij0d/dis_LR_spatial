@@ -154,7 +154,7 @@ for nu_length in nu_lengths:
     # Assign results based on the index to maintain order
     for i, result in results:
         results[i] = result
-    with open(f'expriements/decentralized/varying_parameter/more_irregular_rerun/nu_{nu}_length_scale_{length_scale_act}_memeff.pkl', 'wb') as f:
+    with open(f'expriements/decentralized/varying_parameter/more_irregular/nu_{nu}_length_scale_{length_scale_act}_memeff.pkl', 'wb') as f:
         pickle.dump(results, f)
 
     
