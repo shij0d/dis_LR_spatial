@@ -189,91 +189,98 @@ def estimation_prediction(nu):
     theta_ini=torch.tensor([alpha_ini,length_scale_ini],dtype=torch.float64)
     x_ini=gpp_estimation.argument2vector_lik(beta_ini,delta_ini,theta_ini)
     
-    
-    try:
-        mu,Sigma,beta,delta,theta,result=gpp_estimation.get_minimier(x_ini)
+    file_path_optimial= "/home/shij0d/Documents/Dis_Spatial/real_data/prediction/optimal_estimator.pkl"
+    if os.path.exists(file_path_optimial):
+        with open(file_path, "rb") as file:
+            optimal_estimator = pickle.load(file)
+        mu,Sigma,beta,delta,theta,_=optimal_estimator
+        print(f"delta:{delta.numpy()},theta:{theta.squeeze().numpy()}")
         gpp_prediction=GPPPrediction(locations_pre,kernelf,knots,None,mu,Sigma,None,delta,theta)
         optimal_pre=gpp_prediction.predict()
-        optimal_estimator=(mu,Sigma,beta,delta,theta,result)
-        file_path_save="/home/shij0d/Documents/Dis_Spatial/real_data/optimal_estimator.pkl"
-        with open(file_path_save, "wb") as file:
-            pickle.dump(optimal_estimator, file)
-        print("global optimization succeed")
-        print(f"delta:{delta.numpy()},theta:{theta.squeeze().numpy()}")
-    except Exception:
-        optimal_estimator=("global minimization error")
-        print("global optimization failed")
+    else:
+        try:
+            mu,Sigma,beta,delta,theta,result=gpp_estimation.get_minimier(x_ini)
+            gpp_prediction=GPPPrediction(locations_pre,kernelf,knots,None,mu,Sigma,None,delta,theta)
+            optimal_pre=gpp_prediction.predict()
+            optimal_estimator=(mu,Sigma,beta,delta,theta,result)
+            file_path_save="/home/shij0d/Documents/Dis_Spatial/real_data/prediction/optimal_estimator.pkl"
+            with open(file_path_save, "wb") as file:
+                pickle.dump(optimal_estimator, file)
+            print("global optimization succeed")
+            print(f"delta:{delta.numpy()},theta:{theta.squeeze().numpy()}")
+        except Exception:
+            optimal_estimator=("global minimization error")
+            print("global optimization failed")
   
-    try:
-
-        mu_list,Sigma_list,beta_list,delta_list,theta_list,_,_=gpp_estimation.get_local_minimizers_parallel(x_ini,job_num=-1)
-        local_estimators=(mu_list,Sigma_list,beta_list,delta_list,theta_list)
-        file_path_save="/home/shij0d/Documents/Dis_Spatial/real_data/local_estimators.pkl"
-        with open(file_path_save, "wb") as file:
-            pickle.dump(local_estimators, file)
-        print("local optimization succeed")
-    except Exception:
-        print("local optimization failed")
-        return ("local minimization error")
-    if len(mu_list)==0:
-        print("local optimization failed")
-        return ("local minimization error",optimal_estimator)   
-    
-    mu=mu_list[0]
-    Sigma=Sigma_list[0]
-    #beta=beta_list[0]
-    delta=delta_list[0]
-    theta=theta_list[0]
-    num=len(mu_list)
-    if num>1:
-        for j in range(1,num):
-            mu+=mu_list[j]
-            Sigma+=Sigma_list[j]
-            #beta+=beta_list[j]
-            delta+=delta_list[j]
-            theta+=theta_list[j]
-    mu=mu/num
-    Sigma=Sigma/num
-    beta=None
-    delta=delta/num
-    theta=theta/num
-    average_estimator=(mu,Sigma,beta,delta,theta)
-    print(f"delta:{delta.numpy()},theta:{theta.squeeze().numpy()}")
-    
-    file_path_save="/home/shij0d/Documents/Dis_Spatial/real_data/average_estimator.pkl"
-    with open(file_path_save, "wb") as file:
-        pickle.dump(average_estimator, file)
-    print(f"delta:{delta.numpy()},theta:{theta.squeeze().numpy()}")
-    
-    
-    
-    # Read data from the pickle file
-    file_path = "/home/shij0d/Documents/Dis_Spatial/real_data/optimal_estimator.pkl"
-    with open(file_path, "rb") as file:
-        optimal_estimator = pickle.load(file)
-    mu,Sigma,beta,delta,theta,_=optimal_estimator
-    print(f"delta:{delta.numpy()},theta:{theta.squeeze().numpy()}")
-    
-    #Read data from the pickle file
-    file_path = "/home/shij0d/Documents/Dis_Spatial/real_data/average_estimator.pkl"
-    with open(file_path, "rb") as file:
-        average_estimator = pickle.load(file)
-    mu,Sigma,beta,delta,theta=average_estimator
-    
-    print(f"delta:{delta.numpy()},theta:{theta.squeeze().numpy()}")
-    #beta=beta.reshape(-1,1)
-    mu_list=[]
-    Sigma_list=[]
-    beta_list=[]
-    delta_list=[]
-    theta_list=[]
-    for j in range(J):
-        mu_list.append(mu)
-        Sigma_list.append(Sigma)
-        beta_list.append(beta)
-        delta_list.append(delta)
-        theta_list.append(theta)
-    
+    file_path_avg="/home/shij0d/Documents/Dis_Spatial/real_data/prediction/average_estimator.pkl"
+    if os.path.exists(file_path_avg):
+        with open(file_path_avg, "rb") as file:
+            average_estimator = pickle.load(file)
+        mu,Sigma,beta,delta,theta=average_estimator
+        print(f"delta:{delta.numpy()},theta:{theta.squeeze().numpy()}")
+        #beta=beta.reshape(-1,1)
+        mu_list=[]
+        Sigma_list=[]
+        beta_list=[]
+        delta_list=[]
+        theta_list=[]
+        for j in range(J):
+            mu_list.append(mu)
+            Sigma_list.append(Sigma)
+            beta_list.append(beta)
+            delta_list.append(delta)
+            theta_list.append(theta)
+    else:
+        try:
+            mu_list,Sigma_list,beta_list,delta_list,theta_list,_,_=gpp_estimation.get_local_minimizers_parallel(x_ini,job_num=-1)
+            local_estimators=(mu_list,Sigma_list,beta_list,delta_list,theta_list)
+            file_path_save="/home/shij0d/Documents/Dis_Spatial/real_data/prediction/local_estimators.pkl"
+            with open(file_path_save, "wb") as file:
+                pickle.dump(local_estimators, file)
+            print("local optimization succeed")
+            mu=mu_list[0]
+            Sigma=Sigma_list[0]
+            #beta=beta_list[0]
+            delta=delta_list[0]
+            theta=theta_list[0]
+            num=len(mu_list)
+            if num>1:
+                for j in range(1,num):
+                    mu+=mu_list[j]
+                    Sigma+=Sigma_list[j]
+                    #beta+=beta_list[j]
+                    delta+=delta_list[j]
+                    theta+=theta_list[j]
+            mu=mu/num
+            Sigma=Sigma/num
+            beta=None
+            delta=delta/num
+            theta=theta/num
+            average_estimator=(mu,Sigma,beta,delta,theta)
+            print(f"delta:{delta.numpy()},theta:{theta.squeeze().numpy()}")
+        
+            file_path_save="/home/shij0d/Documents/Dis_Spatial/real_data/prediction/average_estimator.pkl"
+            with open(file_path_save, "wb") as file:
+                pickle.dump(average_estimator, file)
+            print(f"delta:{delta.numpy()},theta:{theta.squeeze().numpy()}")
+            #beta=beta.reshape(-1,1)
+            mu_list=[]
+            Sigma_list=[]
+            beta_list=[]
+            delta_list=[]
+            theta_list=[]
+            for j in range(J):
+                mu_list.append(mu)
+                Sigma_list.append(Sigma)
+                beta_list.append(beta)
+                delta_list.append(delta)
+                theta_list.append(theta)
+        except Exception:
+            print("local optimization failed")
+            return ("local minimization error")
+        if len(mu_list)==0:
+            print("local optimization failed")
+            return ("local minimization error",optimal_estimator)   
     
     T=100
     #de_estimators=gpp_estimation.de_optimize_stage2(mu_list,Sigma_list,beta_list,delta_list,theta_list,T=T,weights_round=6)
@@ -299,6 +306,6 @@ def estimation_prediction(nu):
 
 result=estimation_prediction(1.5)
 
-file_path_save="/home/shij0d/Documents/Dis_Spatial/real_data/result_prediction.pkl"
+file_path_save="/home/shij0d/Documents/Dis_Spatial/real_data/prediction/result_prediction.pkl"
 with open(file_path_save, "wb") as file:
     pickle.dump(result, file)

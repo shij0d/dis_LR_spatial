@@ -10,10 +10,24 @@ Texmacs
 *.nc
 *.txt
 *.zip
-real_data/MRA_codeAndData
+real_data/Second_scenario/MRA_codeAndData
 *.tar
 .vscode
 __pycache__
 *.png
 *.pdf
 test
+expriements/centralized
+
+dis_spatial.egg-info
+dis_spatial
+expriements/decentralized/prediction/exp copy.py
+expriements/decentralized/prediction/exp_pred.py
+expriements/decentralized/varying_machine_number/results_eff.py
+expriements/decentralized/varying_machine_number/round_estimation.py
+expriements/decentralized/varying_network/results_eff.py
+expriements/decentralized/estimating_nu/exp_nu_penguin.py
+real_data/Second_scenario/time_com_varying_m/initial_fixed
+real_data/real_debug.py
+real_data/real_penguin.py
+real_data/real_plot.py
