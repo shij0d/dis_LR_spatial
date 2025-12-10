@@ -1,9 +1,9 @@
 #%%
-import sys
+#import sys
 
 
-# Add the path where your Python packages are located
-sys.path.append('/home/shij0d/documents/dis_LR_spatial')
+## Add the path where your Python packages are located
+#sys.path.append('/home/shij0d/documents/dis_LR_spatial')
 
 import unittest
 import torch
@@ -122,5 +122,5 @@ def estimate(r):
 
 rs=[i for i in range(100)]
 results = Parallel(n_jobs=-1)(delayed(estimate)(r) for r in rs)
-with open(f'/home/shij0d/documents/dis_LR_spatial/expriements/decentralized/misspecified/results_memeff.pkl', 'wb') as f:
+with open(f'expriements/decentralized/misspecified/results_memeff.pkl', 'wb') as f:
     pickle.dump(results, f)

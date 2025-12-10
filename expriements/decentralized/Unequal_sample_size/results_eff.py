@@ -1,6 +1,6 @@
 #%%
 import sys
-sys.path.append('/home/shij0d/documents/dis_LR_spatial')
+#sys.path.append('/home/shij0d/documents/dis_LR_spatial')
 import pickle
 from src.utils import exact_parameters
 

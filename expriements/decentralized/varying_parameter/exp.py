@@ -3,7 +3,7 @@ import sys
 import time
 
 # Add the path where your Python packages are located
-sys.path.append('/home/shij0d/Documents/Dis_Spatial')
+#sys.path.append('/home/shij0d/Documents/Dis_Spatial')
 
 import unittest
 import torch
@@ -132,9 +132,7 @@ def estimate(r,length_scale,nu):
   
     return de_estimators,optimal_estimator
 nu_lengths=[(0.5,0.033),(0.5,0.1),(0.5,0.234),(1.5,0.021*math.sqrt(3)),(1.5,0.063*math.sqrt(3)),(1.5,0.148*math.sqrt(3))]
-nu_lengths=[nu_lengths[1]]
 rs=[r for r in range(100)]
-rs=[8]
 for nu_length in nu_lengths:
     nu=nu_length[0]
     
@@ -145,25 +143,18 @@ for nu_length in nu_lengths:
         length_scale_act=length_scale
     print(f"nu:{nu},length_scale:{length_scale_act}")
     estimate_l=partial(estimate,length_scale=length_scale,nu=nu)
-    
-    results=[]
-    for r in rs:
-        print(f"r:{r}")
-        result=estimate_l(r)
-    #     results.append(result)
-    # with open(f'/home/shij0d/Documents/Dis_Spatial/expriements/decentralized/varying_parameter/mindis_0.01/nu_{nu}_length_scale_{length_scale_act}.pkl', 'wb') as f:
-    #     pickle.dump(results, f)
+
     
     
-    # results = [None] * len(rs)
+    results = [None] * len(rs)
     # # Parallel execution for the list of rs, while maintaining the index (i)
-    # results = Parallel(n_jobs=-1)(
-    #     delayed(lambda i, r: (i, estimate_l(r)))(i, r) for i, r in enumerate(rs)
-    # )
-    # # Assign results based on the index to maintain order
-    # for i, result in results:
-    #     results[i] = result
-    # with open(f'/home/shij0d/Documents/Dis_Spatial/expriements/decentralized/varying_parameter/more_irregular/nu_{nu}_length_scale_{length_scale_act}_memeff.pkl', 'wb') as f:
-    #     pickle.dump(results, f)
+    results = Parallel(n_jobs=-1)(
+        delayed(lambda i, r: (i, estimate_l(r)))(i, r) for i, r in enumerate(rs)
+    )
+    # Assign results based on the index to maintain order
+    for i, result in results:
+        results[i] = result
+    with open(f'expriements/decentralized/varying_parameter/more_irregular_rerun/nu_{nu}_length_scale_{length_scale_act}_memeff.pkl', 'wb') as f:
+        pickle.dump(results, f)
 
     

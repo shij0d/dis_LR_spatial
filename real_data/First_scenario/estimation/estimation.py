@@ -1,44 +1,17 @@
-
-# what is the next step
-# 1. determine the area to be analyzed: done (north american)
-# 2. Partition the data into two parts: done
-# 3. One part is for parameter estimation, then predict the value in the other part
-# # 3.1 Which distance function should I use: just use the chordal distance induced by the Euclidean distance (refer literature)
-# # 3.2 incorporate the intercept: yes
-# 4. compare the decentralized method with MLE
-
-# 5. compare with the method in the paper in terms of computational efficiency, estimation accuracy and prediction accuracy?
+#path_project='/home/shij0d/Documents/Dis_Spatial'
 import warnings
-
-# Suppress FutureWarning from torch.load
-#warnings.filterwarnings("ignore")
-
 warnings.simplefilter("error", FutureWarning)
-
 import numpy as np
-import matplotlib.pyplot as plt
 from netCDF4 import Dataset
 import os
-import cartopy.crs as ccrs
-import cartopy.feature as cfeature
 import numpy as np
-
-
-
-import sys
-import time
-
+#import sys
 # Add the path where your Python packages are located
-sys.path.append('/home/shij0d/Documents/Dis_Spatial')
-
-import unittest
+#sys.path.append(path_project)
 import torch
 from scipy.optimize import minimize
 from src.estimation_torch_real_data import GPPEstimation  # Assuming your class is defined in gppestimation.py
-from src.generation import GPPSampleGenerator
-from sklearn.gaussian_process.kernels import Matern
-import math
-from src.kernel import exponential_kernel,onedif_kernel,matern_kernel_factory,matern_kernel
+from src.kernel import exponential_kernel,onedif_kernel,matern_kernel
 from src.networks import generate_connected_erdos_renyi_graph
 from src.weights import optimal_weight_matrix
 import networkx as nx
@@ -52,9 +25,7 @@ from joblib import Parallel, delayed
 
 SEED=2024
 
-
-
-path = "/home/shij0d/Documents/Dis_Spatial/real_data/Blended-Hydro_TPW_MAP_d20241105/"
+path = 'real_data/First_scenario/data/Blended-Hydro_TPW_MAP_d20241105/'
 files = [f for f in os.listdir(path) if os.path.isfile(os.path.join(path, f))]
 file_path=path+files[0]
 file2read = Dataset(file_path)
@@ -185,7 +156,7 @@ def estimation(nu,min_dis):
     # try:
     #     mu,Sigma,beta,delta,theta,result=gpp_estimation.get_minimier(x_ini)
     #     optimal_estimator=(mu,Sigma,beta,delta,theta,result)
-    #     file_path_save="/home/shij0d/Documents/Dis_Spatial/real_data/optimal_estimator.pkl"
+    #     file_path_save="real_data/optimal_estimator.pkl"
     #     with open(file_path_save, "wb") as file:
     #         pickle.dump(optimal_estimator, file)
     #     print("global optimization succeed")
@@ -203,11 +174,10 @@ def estimation(nu,min_dis):
     theta_ini=torch.tensor([alpha_ini,length_scale_ini],dtype=torch.float64)
     x_ini=gpp_estimation.argument2vector_lik(beta_ini,delta_ini,theta_ini)
     
-    
     try:
         mu,Sigma,beta,delta,theta,result=gpp_estimation.get_minimier(x_ini)
         optimal_estimator=(mu,Sigma,beta,delta,theta,result)
-        file_path_save="/home/shij0d/Documents/Dis_Spatial/real_data/optimal_estimator.pkl"
+        file_path_save="real_data/First_scenario/estimation/output/output/optimal_estimator.pkl"
         with open(file_path_save, "wb") as file:
             pickle.dump(optimal_estimator, file)
         print("global optimization succeed")
@@ -220,7 +190,7 @@ def estimation(nu,min_dis):
 
         mu_list,Sigma_list,beta_list,delta_list,theta_list,_,_=gpp_estimation.get_local_minimizers_parallel(x_ini,job_num=-1)
         local_estimators=(mu_list,Sigma_list,beta_list,delta_list,theta_list)
-        file_path_save="/home/shij0d/Documents/Dis_Spatial/real_data/local_estimators.pkl"
+        file_path_save="real_data/First_scenario/estimation/output/local_estimators.pkl"
         with open(file_path_save, "wb") as file:
             pickle.dump(local_estimators, file)
         print("local optimization succeed")
@@ -252,20 +222,20 @@ def estimation(nu,min_dis):
     average_estimator=(mu,Sigma,beta,delta,theta)
     print(f"delta:{delta.numpy()},theta:{theta.squeeze().numpy()}")
     
-    file_path_save="/home/shij0d/Documents/Dis_Spatial/real_data/average_estimator.pkl"
+    file_path_save="real_data/First_scenario/estimation/output/average_estimator.pkl"
     with open(file_path_save, "wb") as file:
         pickle.dump(average_estimator, file)
     print(f"delta:{delta.numpy()},theta:{theta.squeeze().numpy()}")
     
     # Read data from the pickle file
-    file_path = "/home/shij0d/Documents/Dis_Spatial/real_data/optimal_estimator.pkl"
+    file_path = "real_data/First_scenario/estimation/output/optimal_estimator.pkl"
     with open(file_path, "rb") as file:
         optimal_estimator = pickle.load(file)
     mu,Sigma,beta,delta,theta,_=optimal_estimator
     print(f"delta:{delta.numpy()},theta:{theta.squeeze().numpy()}")
     
     #Read data from the pickle file
-    file_path = "/home/shij0d/Documents/Dis_Spatial/real_data/average_estimator.pkl"
+    file_path = "real_data/First_scenario/estimation/output/average_estimator.pkl"
     with open(file_path, "rb") as file:
         average_estimator = pickle.load(file)
     mu,Sigma,beta,delta,theta=average_estimator
@@ -302,6 +272,6 @@ def estimation(nu,min_dis):
 
 result=estimation(1.5,3)
 
-file_path_save="/home/shij0d/Documents/Dis_Spatial/real_data/result.pkl"
+file_path_save="real_data/First_scenario/estimation/output/result.pkl"
 with open(file_path_save, "wb") as file:
     pickle.dump(result, file)

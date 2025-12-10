@@ -3,9 +3,7 @@ import sys
 
 
 # Add the path where your Python packages are located
-sys.path.append('/home/shij0d/documents/dis_LR_spatial')
-
-import unittest
+##sys.path.append('/home/shij0d/documents/dis_LR_spatial')import unittest
 import torch
 from scipy.optimize import minimize
 from src.estimation_torch import GPPEstimation  # Assuming your class is defined in gppestimation.py
@@ -136,7 +134,7 @@ rs=[r for r in range(100)]
 #     print(f"r:{r}")
 #     result=estimate(r)
 #     results.append(result)
-# with open(f'/home/shij0d/Documents/Dis_Spatial/expriements/decentralized/Unequal_sample_size/res.pkl', 'wb') as f:
+# with open(f'expriements/decentralized/Unequal_sample_size/res.pkl', 'wb') as f:
 #     pickle.dump(results, f)
 results = [None] * len(rs)
 # Parallel execution for the list of rs, while maintaining the index (i)
@@ -146,5 +144,5 @@ results = Parallel(n_jobs=-1)(
 # Assign results based on the index to maintain order
 for i, result in results:
     results[i] = result
-with open(f'/home/shij0d/documents/dis_LR_spatial/expriements/decentralized/Unequal_sample_size/more_irregular/res_memeff.pkl', 'wb') as f:
+with open(f'expriements/decentralized/Unequal_sample_size/more_irregular/res_memeff.pkl', 'wb') as f:
     pickle.dump(results, f)

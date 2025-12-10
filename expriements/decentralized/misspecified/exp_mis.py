@@ -1,9 +1,9 @@
 #%%
-import sys
+#import sys
 
 
-# Add the path where your Python packages are located
-sys.path.append('/home/shij0d/Documents/Dis_Spatial')
+## Add the path where your Python packages are located
+#sys.path.append('/home/shij0d/Documents/Dis_Spatial')
 import unittest
 import torch
 from scipy.optimize import minimize
@@ -124,7 +124,6 @@ def estimate(r,length_scale,nu,rank):
 #estimate(0,0.051*math.sqrt(5),2.5,100)
 rank=300
 nu_lengths=[(0.5,0.1),(0.5,0.234),(1.5,0.063*math.sqrt(3)),(1.5,0.148*math.sqrt(3)),(2.5,0.051*math.sqrt(5)),(2.5,0.118*math.sqrt(5))]
-nu_lengths=[(2.5,0.051*math.sqrt(5)),(2.5,0.118*math.sqrt(5))]
 for nu_length in nu_lengths:
     nu=nu_length[0]
     
@@ -135,5 +134,5 @@ for nu_length in nu_lengths:
     estimate_l=partial(estimate,length_scale=length_scale,nu=nu,rank=rank)
     rs=[i for i in range(100)]
     results = Parallel(n_jobs=-1)(delayed(estimate_l)(r) for r in rs)
-    with open(f'/home/shij0d/Documents/Dis_Spatial/expriements/decentralized/misspecified/nu_{nu}_length_scale_{length_scale_act}_rank_{rank}_grid_memeff.pkl', 'wb') as f:
+    with open(f'expriements/decentralized/misspecified/nu_{nu}_length_scale_{length_scale_act}_rank_{rank}_grid_memeff.pkl', 'wb') as f:
         pickle.dump(results, f)

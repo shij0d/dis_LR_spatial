@@ -3,7 +3,7 @@ import sys
 
 
 # Add the path where your Python packages are located
-sys.path.append('/home/shij0d/Documents/Dis_Spatial')
+#sys.path.append('/home/shij0d/Documents/Dis_Spatial')
 
 import unittest
 import torch
@@ -105,5 +105,5 @@ for J in Js:
         result=estimate(r,J)
         results_r.append(result)
     results.append(results_r)
-    with open(f'/home/shij0d/Documents/Dis_Spatial/expriements/decentralized/time_comparison/results_memeff.pkl', 'wb') as f:
+    with open(f'expriements/decentralized/time_comparison/results_memeff.pkl', 'wb') as f:
         pickle.dump(results, f)

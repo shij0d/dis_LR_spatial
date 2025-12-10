@@ -11,6 +11,7 @@ Texmacs
 *.txt
 *.zip
 real_data/Second_scenario/MRA_codeAndData
+real_data/Second_scenario/MRA_codeAndData
 *.tar
 .vscode
 __pycache__
