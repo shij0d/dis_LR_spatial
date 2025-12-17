@@ -117,10 +117,14 @@ def estimate(r,nu):
 
 # run rs=[r for r in range(25)] and rs=[r for r in range(25,60)] in other machine to accelerate the computation
 rs=[r for r in range(60,100)] 
+
+# the range of nu can be changed to other range
 nus=np.arange(0.2, 1, 0.1)
 # Parallel execution for the list of rs, while maintaining the index (i)
 results = Parallel(n_jobs=-1)(
     delayed(estimate)(r,nu) for  r in rs for nu in nus
 )
+
+#note that the file name should be changed according to the range of nu and the true nu, also the range parameter
 with open(f'expriements/decentralized/estimating_nu/r_range(60,100)_nu_{0.53}.pkl', 'wb') as f:
     pickle.dump(results, f)

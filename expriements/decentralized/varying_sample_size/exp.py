@@ -1,13 +1,7 @@
 #%%
-import sys
 
-
-# Add the path where your Python packages are located
-#sys.path.append('/home/shij0d/documents/dis_LR_spatial')
-import unittest
 import torch
-from scipy.optimize import minimize
-from src.estimation_torch import GPPEstimation  # Assuming your class is defined in gppestimation.py
+from src.estimation_torch import GPPEstimation 
 from src.generation import GPPSampleGenerator
 from sklearn.gaussian_process.kernels import Matern
 import math
@@ -143,6 +137,6 @@ for N in Ns:
     # Assign results based on the index to maintain order
     for i, result in results:
         results[i] = result
-    with open(f'/home/shij0d/documents/dis_LR_spatial/expriements/decentralized/varying_sample_size/more_irregular/N_{N}_memeff.pkl', 'wb') as f:
+    with open(f'expriements/decentralized/varying_sample_size/more_irregular/N_{N}_memeff.pkl', 'wb') as f:
         pickle.dump(results, f)
 

@@ -5,6 +5,8 @@ with open("expriements/decentralized/CI/results.pkl", "rb") as file:
     results=pickle.load(file)
 
 # %%
+
+#the following result is from the result.pkl file in the CI folder
 # columns: gamma(across 5 columns), delta(1/tau^2), theta (across 2 columns)
 # rows: empirical std, estimated std, empirical coverage probability
 std_emp=torch.tensor([0.0200, 0.0205, 0.0222, 0.0194, 0.0222, 0.0032, 0.2428, 0.0113],dtype=torch.float64)

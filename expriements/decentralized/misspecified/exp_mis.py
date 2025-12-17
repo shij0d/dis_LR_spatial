@@ -81,24 +81,28 @@ def estimate(r,length_scale,nu,rank):
         print("local optimization failed")
         return (r, "local minimization error")    
     
-    mu=mu_list[0]
-    Sigma=Sigma_list[0]
-    beta=beta_list[0]
-    delta=delta_list[0]
-    theta=theta_list[0]
+    mu=torch.zeros_like(mu_list[0],dtype=torch.float64)
+    Sigma=torch.zeros_like(Sigma_list[0],dtype=torch.float64)
+    beta=torch.zeros_like(beta_list[0],dtype=torch.float64)
+    delta=torch.zeros_like(delta_list[0],dtype=torch.float64)
+    theta=torch.zeros_like(theta_list[0],dtype=torch.float64)
+    num_effective=0
+    EXTREME_THRESHOLD=20
     num=len(mu_list)
     if num>1:
-        for j in range(1,num):
-            mu+=mu_list[j]
-            Sigma+=Sigma_list[j]
-            beta+=beta_list[j]
-            delta+=delta_list[j]
-            theta+=theta_list[j]
-    mu=mu/num
-    Sigma=Sigma/num
-    beta=beta/num
-    delta=delta/num
-    theta=theta/num
+        for j in range(num):
+            if torch.norm(theta_list[j])<EXTREME_THRESHOLD: #prevent extreme values of theta
+                num_effective+=1
+                mu+=mu_list[j]
+                Sigma+=Sigma_list[j]
+                beta+=beta_list[j]
+                delta+=delta_list[j]
+                theta+=theta_list[j]
+    mu=mu/num_effective
+    Sigma=Sigma/num_effective
+    beta=beta/num_effective
+    delta=delta/num_effective
+    theta=theta/num_effective
     mu_list=[]
     Sigma_list=[]
     beta_list=[]
@@ -124,7 +128,7 @@ def estimate(r,length_scale,nu,rank):
 #estimate(0,0.051*math.sqrt(5),2.5,100)
 rank=300
 nu_lengths=[(0.5,0.1),(0.5,0.234),(1.5,0.063*math.sqrt(3)),(1.5,0.148*math.sqrt(3)),(2.5,0.051*math.sqrt(5)),(2.5,0.118*math.sqrt(5))]
-nu_lengths=[(2.5,0.051*math.sqrt(5)),(2.5,0.118*math.sqrt(5))]
+#nu_lengths=[(2.5,0.051*math.sqrt(5)),(2.5,0.118*math.sqrt(5))]
 for nu_length in nu_lengths:
     nu=nu_length[0]
     

@@ -1,4 +1,4 @@
-
+#The confidence interval relies on the parameter estimates, thus rely on the result in varying_parameter
 from src.kernel import exponential_kernel, onedif_kernel
 import pickle
 import numpy as np
