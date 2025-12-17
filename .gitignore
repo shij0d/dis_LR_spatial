@@ -11,6 +11,7 @@ Texmacs
 *.txt
 *.zip
 real_data/Second_scenario/MRA_codeAndData
+real_data/Second_scenario/MRA_codeAndData
 *.tar
 .vscode
 __pycache__
@@ -21,15 +22,29 @@ expriements/centralized
 
 dis_spatial.egg-info
 dis_spatial
-
-src/estimation_torch_v2.py
-
-nonconvex optimization/
-
-test/
-
-expriements/centralized/
-
-expriements/decentralized/estimating_nu/exp.py
-
-expriements/decentralized/estimating_nu/test.py
+expriements/decentralized/prediction/exp copy.py
+expriements/decentralized/prediction/exp_pred.py
+expriements/decentralized/varying_machine_number/results_eff.py
+expriements/decentralized/varying_machine_number/round_estimation.py
+expriements/decentralized/varying_network/results_eff.py
+expriements/decentralized/estimating_nu/exp_nu_penguin.py
+real_data/Second_scenario/time_com_varying_m/initial_fixed
+real_data/real_debug.py
+real_data/real_penguin.py
+real_data/real_plot.py
+real_data/real_depreciated.py
+real_data/real_MRA_time_com.py
+real_data/First_scenario/estimate_nu/exp_nu_test.py
+real_data/First_scenario/CI/real_confidence_interval_nu_inf.py
+real_data/First_scenario/estimation/estimation_compare.py
+real_data/First_scenario/estimation/estimation_nu_inf.py
+real_data/Second_scenario/RMSPE_varying_m/prediction_plot_nu_inf.py
+real_data/Second_scenario/RMSPE_varying_m/prediction_varying_m_nu_inf.py
+real_data/Second_scenario/time_com_varying_J/time_com_plot_nu_inf.py
+real_data/Second_scenario/time_com_varying_J/time_com_vary_J_nu_inf_debug.py
+real_data/Second_scenario/time_com_varying_J/time_com_vary_J_nu_inf.py
+real_data/Second_scenario/time_com_varying_m/time_com_varing_m_nu_inf.py
+expriements/decentralized/estimating_nu/from_shaheen/plot.py
+expriements/decentralized/estimating_nu/exp_nu_debug_larger_l.py
+expriements/decentralized/estimating_nu/exp_nu_debug_smaller_l.py
+expriements/decentralized/estimating_nu/exp_nu_debug.py
