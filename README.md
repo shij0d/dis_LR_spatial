@@ -198,6 +198,7 @@ Dis_Spatial/
 
 ## Experiments
 
+
 ### Simulation Studies
 
 The `expriements/decentralized/` directory contains reproducible experiments:
@@ -233,6 +234,8 @@ The `real_data/` directory contains total precipitable water (TPW) satellite dat
 | Time comparison (varying machine count) | `Second_scenario/time_com_varying_J/` |
 | Time comparison (varying rank) | `Second_scenario/time_com_varying_m/` |
 | RMSPE (varying rank) | `Second_scenario/RMSPE_varying_m/` |
+
+Each subfolder contains Python scripts to run experiments and Jupyter notebooks to generate plots.
 
 
 ## License

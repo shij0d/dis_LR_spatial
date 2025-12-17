@@ -56,6 +56,12 @@ expriements/decentralized/varying_parameter/results_eff.py
 expriements/decentralized/varying_parameter/exp_test.py
 real_data/Second_scenario/RMSPE_varying_m/prediction_plot.py
 expriements/decentralized/misspecified/exp_mis_correct.py
+real_data/First_scenario/depreciated/prediction/real_prediction.py
+real_data/First_scenario/depreciated/
+real_data/Second_scenario/time_com_varying_J/time_com_plot.py
+real_data/Second_scenario/time_com_varying_m/real_MRA_time_com_varing_m.py
+real_data/Second_scenario/time_com_varying_m/real_MRA_time_com_varing_m_debug.py
+
 
 
 !expriements/decentralized/estimating_nu/plot_nu_0.5.ipynb
