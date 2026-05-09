@@ -418,9 +418,9 @@ def matern_kernel(X: torch.Tensor | np.ndarray,
     return alpha * kernel_matrix
 
 
-def matern_kernel_factory(nu: float,type):
+def matern_kernel_factory(nu: float,type="Euclidean"):
     def matern_kernel_nu(X: torch.Tensor | np.ndarray, 
                   Y: torch.Tensor | np.ndarray | None, 
                   theta: torch.Tensor | np.ndarray):
-        return matern_kernel(X,Y,theta,nu)
+        return matern_kernel(X,Y,theta,nu,type)
     return matern_kernel_nu
