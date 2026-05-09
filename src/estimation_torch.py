@@ -714,11 +714,17 @@ class GPPEstimation:
 
         return (mu, Sigma, beta, delta, theta, result)
 
-    def de_optimize_stage2(self, mu_list: list[torch.Tensor], Sigma_list: list[torch.Tensor], beta_list: list[torch.Tensor], delta_list: list[torch.Tensor], theta_list: list[torch.Tensor], T: int, weights_round=4, seed=2024):
+    def de_optimize_stage2(self, mu_list: list[torch.Tensor], Sigma_list: list[torch.Tensor], beta_list: list[torch.Tensor], delta_list: list[torch.Tensor], theta_list: list[torch.Tensor], T: int, weights_round=4, seed=2024,verbose_setting: dict | None = None):
         torch.manual_seed(seed)
         # self.weights=torch.ones((self.J,self.J),dtype=torch.double)/self.J
         self.weights = torch.matrix_power(self.weights, weights_round)
         # define some functions
+        
+        verbose_frequency=10 #the frequency of verbose output
+        verbose_print_inner=False #whether to print the inner optimization results in each iteration
+        if verbose_setting is not None:
+                verbose_frequency = verbose_setting.get('frequency', 10)
+                verbose_print_inner=verbose_setting.get('print_inner', False)
 
         def K_f(theta):
             return self.kernel(self.knots, self.knots, theta)
@@ -1004,13 +1010,15 @@ class GPPEstimation:
         beta_lists = [beta_list]
         delta_lists = [delta_list]
         theta_lists = [theta_list]
-
+        
+        
+        
         for t in range(T):
             mu_list_p = mu_list
             Sigma_list_p = Sigma_list
-            if t%10==0:
+            
+            if t%verbose_frequency==0:
                 print(f"iteration:{t}", end=', ')
-            #print(f"iteration:{t}")
             # mu and Sigma
             if t == 0:
                 y_mu_Mstack = torch.tensordot(y_mu_f_parallel(
@@ -1204,7 +1212,8 @@ class GPPEstimation:
                             theta_Mstack = theta_Mstack+noise
                             Continue = False
                
-                #print(f"theta:{torch.mean(theta_Mstack,dim=1).numpy()},gradient:{torch.mean(grad_theta_Mstack,dim=1).numpy()},norm of grad:{torch.norm(torch.mean(grad_theta_Mstack,dim=1)).numpy()}")
+                if verbose_print_inner:
+                    print(f"theta:{torch.mean(theta_Mstack,dim=1).numpy()},gradient:{torch.mean(grad_theta_Mstack,dim=1).numpy()},norm of grad:{torch.norm(torch.mean(grad_theta_Mstack,dim=1)).numpy()}")
                 
                 if s >= 6 and torch.norm(torch.mean(grad_theta_Mstack, dim=1)-torch.mean(grad_theta_Mstack_p, dim=1)) < 1e-4:
                     break

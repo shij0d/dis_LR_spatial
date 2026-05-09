@@ -1,13 +1,11 @@
 from __future__ import annotations
 import numpy as np
 import random
-from sklearn.gaussian_process.kernels import Kernel
-
-import numpy as np
-import random
 import math
+from sklearn.gaussian_process.kernels import Kernel
 from scipy.spatial.distance import cdist
 import matplotlib.pyplot as plt
+from typing import Tuple,List
 
 #a large number
 M=10*8
@@ -364,4 +362,217 @@ class GPPSampleGenerator:
         plt.show()
     
 
+
+
+
+class GPPSampleGeneratorUnitSquare:
+    def __init__(self, num: int, kernel: Kernel, coefficients: List[float], noise: float, seed=2024):
+        self.num = num
+        self.kernel = kernel
+        self.noise = noise
+        self.coefficients = coefficients
+        self.seed = seed
+
+    def random_points(self) -> np.ndarray:
+        np.random.seed(self.seed)
+        n_sqrt = math.ceil(math.sqrt(self.num))
+        n = n_sqrt ** 2
+        xs = np.arange(1, n_sqrt + 1, dtype=np.float64)
+        ys = np.arange(1, n_sqrt + 1, dtype=np.float64)
+        xx, yy = np.meshgrid(xs, ys, indexing='ij')
+        grid_points = np.column_stack([xx.ravel(), yy.ravel()])
+        jitter = np.random.uniform(-0.4, 0.4, size=(n, 2))
+        jittered_points = (grid_points - 0.5 + jitter) / n_sqrt
+        indices = np.random.permutation(n)[:self.num]
+        return jittered_points[indices]
+
+    def get_knots_random(self, locations: np.ndarray, m: int, n_samples=1) -> np.ndarray:
+        np.random.seed(self.seed)
+        n = locations.shape[0]
+        knots_list = [locations[np.random.permutation(n)[:m]] for _ in range(n_samples)]
+        return np.stack(knots_list)
+
+    def get_knots_grid(self, m: int, n_samples=1) -> np.ndarray:
+        np.random.seed(self.seed)
+        m_sqrt = math.ceil(math.sqrt(m))
+        total_num = m_sqrt ** 2
+        xs = np.arange(1, m_sqrt + 1, dtype=np.float64)
+        ys = np.arange(1, m_sqrt + 1, dtype=np.float64)
+        xx, yy = np.meshgrid(xs, ys, indexing='ij')
+        grid_points = np.column_stack([xx.ravel(), yy.ravel()])
+        knots_list = []
+        for _ in range(n_samples):
+            jitter = np.random.uniform(-0.4, 0.4, size=(total_num, 2))
+            jittered_points = (grid_points - 0.5 + jitter) / m_sqrt
+            indices = np.random.permutation(total_num)[:m]
+            knots_list.append(jittered_points[indices])
+        return np.stack(knots_list)
+
+    def generate_x_epsilon(self):
+        """
+        Generates linear term with added noise.
+
+        Returns:
+        - numpy.ndarray: Array of X values adjusted with noise.
+        """
+
+        p = len(self.coefficients)  # Number of coefficients
+
+        # Generate design matrix X with normal distribution
+        np.random.seed(self.seed)
+        X = np.random.normal(size=(self.num, p))
+
+        # Generate noise term epsilon with normal distribution
+        epsilon = np.random.normal(scale=self.noise, size=self.num)
+        epsilon=epsilon.reshape(-1,1)
+        # Convert coefficients to NumPy array and reshape for matrix multiplication
+        coefficients_array = np.array(self.coefficients).reshape(p, 1)
+
+        value= X @ coefficients_array + epsilon
+
+        return value,X
+
+    def generate_obs_gpp(self, m, method):
+        locations = self.random_points()
+        if method == "random":
+            knots = self.get_knots_random(locations, m)[0]
+        elif method == "grid":
+            knots = self.get_knots_grid(m)[0]
+        else:
+            raise ValueError("Invalid choice. Please select from 'random' or 'grid'.")
+        np.random.seed(self.seed)
+        mean_eta = np.zeros(knots.shape[0])
+        cov_eta = self.kernel(knots)
+        eta = np.random.multivariate_normal(mean_eta, cov_eta).reshape(-1, 1)
+        B = self.kernel(locations, knots) @ np.linalg.inv(cov_eta)
+        y = B @ eta
+        value, X = self.generate_x_epsilon()
+        z = y + value
+        data = np.hstack((locations, z, X))
+        return data, knots
+
+    def generate_obs_gp(self,m,method):
+        """
+        Generates observations following Gaussian Process.
+
+        Returns:
+        - numpy.ndarray: Array of generated observations.
+        """
+
+        locations=self.random_points()
+        if method=="random":
+            knots=self.get_knots_random(locations,m)[0]
+        elif method=="grid":
+            knots=self.get_knots_grid(m)[0]
+        else:  
+            raise("Invalid choice. Please select from 'random' or 'grid'.")
+        # Compute the covariance matrix using the kernel function
+        cov = self.kernel(np.array(locations))
+
+        # Initialize the mean vector as zeros
+        mean = np.zeros(self.num)
+
+        # Generate random samples (y) from a multivariate normal distribution
+        np.random.seed(self.seed)
+        y = np.random.multivariate_normal(mean, cov)
+        y=y.reshape(-1,1)
+        # Generate observations based on linear model: z = X @ coefficients + y + epsilon
+        value,X=self.generate_x_epsilon()
+        z = y+value
+        data=np.hstack((locations,z,X))
+        return data,knots
+
+    def data_split(self,data,J,method='random',neighbours=None):
+        '''
+        method: random, by area, random_nearest
+        '''
+        if method=='random':
+            dis_data=np.array_split(data,J,axis=0)
+        if method=='by_area':
+            sqrt_J=int(math.sqrt(J))
+            if int(sqrt_J**2)!=J:
+                Warning("it is not a perfect square")
+            locations=data[:,:2]
+            x_min, x_max = locations[:, 0].min(), locations[:, 0].max()
+            y_min, y_max = locations[:, 1].min(), locations[:, 1].max()
+            
+            # Define the partition edges
+            x_bins = np.linspace(x_min, x_max, sqrt_J + 1)
+            y_bins = np.linspace(y_min, y_max, sqrt_J + 1)
+            
+            dis_data = []
+            
+            # Loop over all partitions and collect data
+            for i in range(sqrt_J):
+                for j in range(sqrt_J):
+                    # Find locations that belong to this partition
+                    x_in_bin = (locations[:, 0] >= x_bins[i]) & (locations[:, 0] < x_bins[i+1])
+                    y_in_bin = (locations[:, 1] >= y_bins[j]) & (locations[:, 1] < y_bins[j+1])
+                    in_bin = x_in_bin & y_in_bin
+                    
+                    # Get the corresponding data for this partition
+                    partition_data = data[in_bin]
+                    dis_data.append(partition_data)
+        if method=='random_nearest':
+            if neighbours==None:
+                raise("please specify the number of nearest locations")
+            N = data.shape[0]
+            n = int(N / J)  # Size of each partition
+            N_random = J * int(n / (1 + neighbours))  # Number of random locations
+
+            np.random.seed(self.seed)
+            data=np.random.permutation(data)
+            locations = data[:, :2]  # Only use the first two columns for locations
+            random_locations = locations[0:N_random, :]  # Get random locations
+
+            # Use scipy.spatial.distance.cdist for efficient distance calculation
+            rest_locations=locations[N_random:,:]
+            dists = cdist(rest_locations, random_locations)  # Calculate pairwise distances
+
+            # Initialize neighbour indices and nums
+            neighbours_idx = np.full((N_random, neighbours), -1, dtype=int)  # Stores the neighbor indices
+            nums = np.zeros(N_random, dtype=int)  # Keeps track of neighbors per random location
+
+            # Assign each point to its nearest random location (up to 'neighbours' per random location)
+            for i, dist_row in enumerate(dists):
+                # Set large distance for locations with full neighbors
+                dist_row[nums >= neighbours] = np.inf
+                idx = np.argmin(dist_row)  # Find the nearest random location
+                neighbours_idx[idx, nums[idx]] = i+N_random  # Assign the point index
+                nums[idx] += 1  # Increment the neighbor count
+
+            # Partition the data based on the neighbor indices
+            dis_data = []
+            for j in range(J):
+                partition_indices = []
+                for i in range(int(n / (1 + neighbours))):
+                    # Collect neighbor indices for this partition
+                    partition_indices.append(j * int(n / (1 + neighbours)) + i)
+                    partition_indices.extend(neighbours_idx[j * int(n / (1 + neighbours)) + i, :].tolist())
+                
+                partition_indices = [idx for idx in partition_indices if idx >= 0]  # Remove invalid (-1) indices
+                partition_data = data[partition_indices, :]  # Get the partitioned data
+                dis_data.append(partition_data)
         
+        return dis_data
+
+    @staticmethod
+    def visual_locations(dis_data: List[np.ndarray], save_file=None, title=None):
+        J = len(dis_data)
+        colors = plt.cm.get_cmap('tab10', J)
+        plt.figure(figsize=(8, 6))
+        for i, partition in enumerate(dis_data):
+            partition_locations = partition[:, :2]
+            plt.scatter(partition_locations[:, 0], partition_locations[:, 1], color=colors(i), alpha=0.5, s=10)
+        if title is not None:
+            plt.title(title, fontsize=20)
+        plt.xlabel('X Coordinate', fontsize=18)
+        plt.ylabel('Y Coordinate', fontsize=18)
+        plt.xticks(fontsize=18)
+        plt.yticks(fontsize=18)
+        plt.legend()
+        plt.grid(True)
+        if save_file is not None:
+            plt.savefig(save_file)
+        plt.show()
+
