@@ -492,18 +492,30 @@ ce_optimize_stage2_cpp_impl(
 
     auto D_nn = at::cdist(knots, knots);  // (m, m), same for all workers/iterations
 
-    std::vector<at::Tensor> dist_vec(J);  // cdist(locs_j, knots) for each chunk
+    // dist_vec[j] = cdist(locs_j, knots). The cdist output is allocated by the
+    // worker thread itself → NUMA-local. Same OMP schedule(static) is used in
+    // the hot loop so chunk j stays on the same worker across all iterations.
+    std::vector<at::Tensor> dist_vec(J);
+    // NUMA-local copy of input z and X — they come from Python allocated on
+    // master's NUMA node and are read on every Stage A / B / C and theta inner
+    // iter. Cloning inside the same OMP region (first-touch on the worker's
+    // core) places them on the worker's socket and eliminates QPI traffic for
+    // workers on socket 1.
+    std::vector<at::Tensor> z_local(J), X_local(J);
     #pragma omp parallel for num_threads(num_threads) schedule(static)
     for (int j = 0; j < J; j++) {
         c10::InferenceMode guard;
         dist_vec[j] = at::cdist(locs_vec[j], knots);
+        z_local[j]  = z_vec[j].contiguous().clone();
+        X_local[j]  = (X_vec[j].numel() > 0) ? X_vec[j].contiguous().clone()
+                                             : at::empty({0}, opts);
     }
 
     at::Tensor y_XTX;
     if (p > 0) {
         y_XTX = at::zeros({p, p}, opts);
         for (int j = 0; j < J; j++)
-            y_XTX += at::matmul(X_vec[j].t(), X_vec[j]);
+            y_XTX += at::matmul(X_local[j].t(), X_local[j]);
         y_XTX /= J;
     }
 
@@ -580,7 +592,7 @@ ce_optimize_stage2_cpp_impl(
         auto _tA = tick();
         #pragma omp parallel for num_threads(num_threads) schedule(static)
         for (int j = 0; j < J; j++) {
-            stageA_worker(dist_vec[j], z_vec[j], X_vec[j], invK, beta,
+            stageA_worker(dist_vec[j], z_local[j], X_local[j], invK, beta,
                          alpha, l, A_y_mu[j], A_y_Sigma[j], A_B[j]);
         }
         if (profile) tock(t_stageA, _tA);
@@ -602,7 +614,7 @@ ce_optimize_stage2_cpp_impl(
         auto _tB = tick();
         #pragma omp parallel for num_threads(num_threads) schedule(static)
         for (int j = 0; j < J; j++) {
-            stageB_worker(z_vec[j], X_vec[j], A_B[j], mu, B_y_beta[j]);
+            stageB_worker(z_local[j], X_local[j], A_B[j], mu, B_y_beta[j]);
         }
 
         y_beta_agg.zero_();
@@ -621,7 +633,7 @@ ce_optimize_stage2_cpp_impl(
         double y_delta_sum = 0.0;
         #pragma omp parallel for num_threads(num_threads) schedule(static) reduction(+:y_delta_sum)
         for (int j = 0; j < J; j++) {
-            y_delta_sum += stageC_worker(z_vec[j], X_vec[j], A_B[j], mu, M, beta, A_y_Sigma[j]);
+            y_delta_sum += stageC_worker(z_local[j], X_local[j], A_B[j], mu, M, beta, A_y_Sigma[j]);
         }
         y_delta_sum /= J;
         delta_val = avg_n / y_delta_sum;
@@ -640,7 +652,7 @@ ce_optimize_stage2_cpp_impl(
             auto _tTp = tick();
             #pragma omp parallel for num_threads(num_threads) schedule(static)
             for (int j = 0; j < J; j++) {
-                batch_theta_worker(dist_vec[j], D_nn, z_vec[j], X_vec[j],
+                batch_theta_worker(dist_vec[j], D_nn, z_local[j], X_local[j],
                                   mu, M, beta, delta_val, alpha, l,
                                   T_grad[j], T_hess[j],
                                   T_buf0[j], T_buf1[j], T_buf2[j], T_buf3[j],
