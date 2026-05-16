@@ -14,11 +14,12 @@ os.environ.setdefault('OMP_PROC_BIND', 'true')
 os.environ.setdefault('OMP_PLACES', 'cores')
 
 import torch
-# Do NOT call torch.set_num_threads(1) — it permanently poisons MKL's
-# kernel dispatch tables at init time, causing a 27× SGEMM regression for
-# FP32 inside #pragma omp parallel (400 ms vs 6 ms). The C++ code calls
-# at::set_num_threads(1) via a scoped RAII guard, which doesn't corrupt
-# the init-time tables.
+# Pin BLAS to 1 thread. This triggers MKL's slow single-thread SGEMM
+# kernel for tall-M thin-K shapes (FP32: 400 ms vs 6 ms) but prevents
+# MKL internal thread-pool contention when J>1 OMP workers call matmul
+# concurrently. The distributed simulation (J>1) is the primary use case;
+# for J=1 throughput benchmarks, comment this out to let MKL use all cores.
+torch.set_num_threads(1)
 try:
     from threadpoolctl import threadpool_limits
     threadpool_limits(limits=1, user_api='blas')

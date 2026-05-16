@@ -514,12 +514,15 @@ ce_optimize_stage2_cpp_impl(
 
     // ── Configure MKL/BLAS thread count ──────────────────────────────────
     // Each OMP worker represents a separate distributed node → 1 BLAS
-    // thread per worker. The caller (Python) should NOT call
-    // torch.set_num_threads(1) — that permanently poisons MKL's kernel
-    // dispatch tables at init time and causes a 27× SGEMM regression for
-    // FP32 thin-K matmuls inside #pragma omp parallel (400 ms vs 6 ms).
-    // We set it here instead; the ThreadGuard restores the original value
-    // on exit, so MKL's init-time kernel tables are not corrupted.
+    // thread per worker. The caller should call torch.set_num_threads(1)
+    // before invoking this function to prevent MKL internal thread-pool
+    // contention when J>1 OMP workers call matmul concurrently.
+    //
+    // Known MKL issue: single-thread SGEMM for tall-M thin-K shapes
+    // (n,50)@(50,50) takes ~400 ms vs ~6 ms with ≥2 threads. This is an
+    // MKL kernel dispatch limitation (OpenBLAS does not have it). It
+    // affects J=1 throughput benchmarks but not J>1 distributed simulation
+    // (where each worker's local n_j = N/J shrinks).
     const int saved_blas = at::get_num_threads();
     at::set_num_threads(1);
     struct ThreadGuard { int prev; ~ThreadGuard() { at::set_num_threads(prev); } }
