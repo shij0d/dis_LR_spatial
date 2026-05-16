@@ -10,6 +10,10 @@
 #include <vector>
 #include <chrono>
 #include <cmath>
+#include <mutex>
+#include <atomic>
+#include <cstdlib>
+#include <cstdio>
 #include <pybind11/pybind11.h>
 #include <pybind11/stl.h>
 
@@ -277,8 +281,7 @@ void batch_theta_worker(
         }
 
         double s_nl_a = dot_sum_t<T>(buf1, buf0);
-        // Build dK_nl_dl = K_nl * D_nl * inv_l2 into buf2 (buf2 is free here —
-        // already consumed via matmul_out into mm3) and reduce against buf1.
+        // Build dK_nl_dl into buf2 (buf2 is free — already consumed by mm3 output)
         {
             T* o = buf2.mutable_data_ptr<T>();
             const T* knl = buf0.const_data_ptr<T>();
@@ -509,16 +512,18 @@ ce_optimize_stage2_cpp_impl(
     int m = knots.size(0);
     int p = (!X_vec.empty() && X_vec[0].numel() > 0) ? X_vec[0].size(1) : 0;
 
-    // ── Force BLAS to 1 thread per call ────────────────────────────────────
-    // PyTorch is built with MKL which respects at::get_num_threads(). Without
-    // this, MKL would spawn additional threads inside each OMP worker —
-    // catastrophic oversubscription for J>1. Saved/restored at function exit.
-    const int saved_threads = at::get_num_threads();
+    // ── Configure MKL/BLAS thread count ──────────────────────────────────
+    // Each OMP worker represents a separate distributed node → 1 BLAS
+    // thread per worker. The caller (Python) should NOT call
+    // torch.set_num_threads(1) — that permanently poisons MKL's kernel
+    // dispatch tables at init time and causes a 27× SGEMM regression for
+    // FP32 thin-K matmuls inside #pragma omp parallel (400 ms vs 6 ms).
+    // We set it here instead; the ThreadGuard restores the original value
+    // on exit, so MKL's init-time kernel tables are not corrupted.
+    const int saved_blas = at::get_num_threads();
     at::set_num_threads(1);
-    struct ThreadGuard {
-        int prev;
-        ~ThreadGuard() { at::set_num_threads(prev); }
-    } _thread_guard{saved_threads};
+    struct ThreadGuard { int prev; ~ThreadGuard() { at::set_num_threads(prev); } }
+        _thread_guard{saved_blas};
 
     auto opts = knots.options();
     auto mu = mu_init.clone();

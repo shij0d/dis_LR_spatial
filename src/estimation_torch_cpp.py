@@ -22,6 +22,7 @@ def _get_ext():
     with open(_CPP_PATH, 'r') as f:
         cpp_source = f.read()
 
+    # Prevent MKL from spawning its own thread pool.
     os.environ.setdefault('OMP_PROC_BIND', 'true')
     os.environ.setdefault('OMP_PLACES', 'cores')
 

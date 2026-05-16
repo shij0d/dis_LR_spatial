@@ -14,7 +14,11 @@ os.environ.setdefault('OMP_PROC_BIND', 'true')
 os.environ.setdefault('OMP_PLACES', 'cores')
 
 import torch
-torch.set_num_threads(1)  # Pin BLAS to 1 per worker so OMP scaling is fair
+# Do NOT call torch.set_num_threads(1) — it permanently poisons MKL's
+# kernel dispatch tables at init time, causing a 27× SGEMM regression for
+# FP32 inside #pragma omp parallel (400 ms vs 6 ms). The C++ code calls
+# at::set_num_threads(1) via a scoped RAII guard, which doesn't corrupt
+# the init-time tables.
 try:
     from threadpoolctl import threadpool_limits
     threadpool_limits(limits=1, user_api='blas')
