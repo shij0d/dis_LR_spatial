@@ -3,6 +3,8 @@
 
 Sweeps J = [1, 2, 4, 8, 16, 28] with num_threads = J on the same N=80_000 data,
 measures wall time and reports speedup / parallel efficiency.
+
+Set CE_DTYPE=fp32 to use float32. Default is float64.
 """
 import os, sys, time, math, threading, statistics
 sys.path.insert(0, '/home/shij0d/documents/dis_LR_spatial')
@@ -22,6 +24,8 @@ import psutil
 from sklearn.gaussian_process.kernels import Matern
 from src.generation import GPPSampleGenerator
 from src.estimation_torch_cpp import ce_optimize_stage2_cpp
+
+_DTYPE = torch.float32 if os.environ.get('CE_DTYPE', '').lower() in ('fp32', 'float32') else torch.float64
 
 # ── Data setup ──────────────────────────────────────────────────────────────
 alpha, length_scale, nu = 1, 0.1, 0.5
@@ -98,12 +102,12 @@ print("Warming up (compile + first run)...", flush=True)
 locs1, zs1, Xs1 = split_for_J(1)
 ce_optimize_stage2_cpp(locs1, zs1, Xs1, knots_t,
                        mu0, Sigma0, beta0, delta0, theta0,
-                       T=1, S=2, num_threads=1)
+                       T=1, S=2, num_threads=1, dtype=_DTYPE)
 print("Ready.\n", flush=True)
 
 monitor = CPUMonitor(interval=0.2)
 
-print(f"N={N}  T={T}  (S_max=5, hessian=analytical)")
+print(f"N={N}  T={T}  dtype={_DTYPE}  (S_max=5, hessian=analytical)")
 print(f"{'J':>3}  {'wall(s)':>9}  {'speedup':>8}  {'eff':>6}   CPU")
 print("-" * 80)
 
@@ -114,13 +118,13 @@ for J in Js:
     # Warm-up at this J (compile-cached but allocator may need to warm)
     ce_optimize_stage2_cpp(locs, zs, Xs, knots_t,
                            mu0, Sigma0, beta0, delta0, theta0,
-                           T=1, S=2, num_threads=J)
+                           T=1, S=2, num_threads=J, dtype=_DTYPE)
 
     monitor.start()
     t0 = time.perf_counter()
     ce_optimize_stage2_cpp(locs, zs, Xs, knots_t,
                            mu0, Sigma0, beta0, delta0, theta0,
-                           T=T, S=5, num_threads=J)
+                           T=T, S=5, num_threads=J, dtype=_DTYPE)
     elapsed = time.perf_counter() - t0
     monitor.stop()
 
